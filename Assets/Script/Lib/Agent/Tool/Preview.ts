@@ -5,6 +5,7 @@ import { acquireEntryLease, recordEntryLeaseRun, ownsEntryLease, releaseEntryLea
 import { isValidWorkspacePath } from 'Agent/Tool/Workspace';
 import { createOperationId } from 'Agent/Tool/Operation';
 import { ensureVisionQuota, publishVisionAsset, visionAssetPath, type VisionAsset, type VisionOwner } from 'Agent/Tool/VisionAssets';
+import { PREVIEW_GAME_STARTUP_TIMEOUT_SECONDS, PREVIEW_GAME_TIMEOUT_SECONDS } from 'Agent/Tool/ToolBudgets';
 import { validateAgentToolInput } from 'Agent/Tool/Validation';
 
 export async function previewGame(req: VisionOwner & {entry?:string;captureAtSeconds?:number[];isCancelled:()=>boolean}): Promise<Record<string,unknown>> {
@@ -18,6 +19,7 @@ export async function previewGame(req: VisionOwner & {entry?:string;captureAtSec
 	const entry=require("Script.Dev.Entry") as DevEntryModule;
 	const operationId=createOperationId(), assets:VisionAsset[]=[];
 	let scope=false, leased=false, complete=false;
+	const previewStart=App.runningTime;
 	return new Promise(resolve=>{
 		Director.systemScheduler.schedule(once(()=>{
 			let result:Record<string,unknown>={success:false,message:"Preview did not complete"};
@@ -36,6 +38,7 @@ export async function previewGame(req: VisionOwner & {entry?:string;captureAtSec
 					debug.sethook(() => {
 						if (req.isCancelled()) error("Preview cancelled during startup");
 						if (App.elapsedTime >= Config.AGENT_LIMITS.executeCommandFrameTimeoutSeconds) error("Preview startup exceeded the game frame time budget");
+						if (App.runningTime - previewStart > PREVIEW_GAME_STARTUP_TIMEOUT_SECONDS) error("Preview startup exceeded the startup time budget");
 						if (DoraObject.count - objects > Config.AGENT_LIMITS.executeCommandMaxObjectGrowth || DoraObject.luaRefCount - refs > Config.AGENT_LIMITS.executeCommandMaxLuaRefGrowth) error("Preview startup exceeded the game object budget");
 					}, "", Config.AGENT_LIMITS.executeCommandHookInstructionCount);
 					const [ok,message]=entry.enterEntryAsync({entryName:Path.getName(full),fileName:Path.replaceExt(full,""),workDir:req.workingDir,projectRoot:req.workingDir,runKind:"agent_test"});
@@ -49,7 +52,7 @@ export async function previewGame(req: VisionOwner & {entry?:string;captureAtSec
 				const check=()=>{
 					if(req.isCancelled())error("Preview cancelled");
 					if(!ownsEntryLease(operationId,entry))error("Preview lost ownership of the running game");
-					if(App.runningTime-started>30)error("Preview timed out");
+					if(App.runningTime-previewStart>PREVIEW_GAME_TIMEOUT_SECONDS)error("Preview timed out");
 					if(DoraObject.count-objects>Config.AGENT_LIMITS.executeCommandMaxObjectGrowth || DoraObject.luaRefCount-refs>Config.AGENT_LIMITS.executeCommandMaxLuaRefGrowth)error("Preview exceeded the game object budget");
 				};
 				for(const time of times) {

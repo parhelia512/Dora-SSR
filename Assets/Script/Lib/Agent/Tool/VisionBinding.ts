@@ -2,7 +2,7 @@
 import type { LLMConfig } from 'Agent/Utils';
 
 /** Increment when a fixed vision route or its request profile changes. */
-export const VISION_PROFILE_VERSION = 1;
+export const VISION_PROFILE_VERSION = 2;
 
 export interface VisionBinding {
 	provider: "deepseek" | "glm-coding-cn";

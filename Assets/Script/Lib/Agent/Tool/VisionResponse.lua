@@ -41,16 +41,17 @@ function ____exports.parseVisionResponse(raw, expectedModel) -- 26
 	local report = message and message.content -- 36
 	local finishReason = type(choice and choice.finish_reason) == "string" and string.sub(choice.finish_reason, 1, 32) or nil -- 37
 	if type(report) ~= "string" or __TS__StringTrim(report) == "" or finishReason ~= "stop" then -- 37
-		return __TS__ObjectAssign({}, accounting, {success = false, finishReason = finishReason, message = "Vision returned no complete report"}) -- 39
-	end -- 39
-	return __TS__ObjectAssign( -- 41
-		{}, -- 41
-		accounting, -- 41
-		{ -- 41
-			success = true, -- 41
-			report = sanitizeUTF8(string.sub(report, 1, 16000)), -- 41
-			reportTruncated = #report > 16000 -- 41
-		} -- 41
-	) -- 41
+		local message = finishReason == "length" and "Vision report was truncated by the provider output limit before completing (finish_reason=length); narrow the question or analyze fewer images" or "Vision returned no complete report" -- 39
+		return __TS__ObjectAssign({}, accounting, {success = false, finishReason = finishReason, message = message}) -- 42
+	end -- 42
+	return __TS__ObjectAssign( -- 44
+		{}, -- 44
+		accounting, -- 44
+		{ -- 44
+			success = true, -- 44
+			report = sanitizeUTF8(string.sub(report, 1, 16000)), -- 44
+			reportTruncated = #report > 16000 -- 44
+		} -- 44
+	) -- 44
 end -- 26
 return ____exports -- 26

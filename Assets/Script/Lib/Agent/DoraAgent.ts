@@ -2531,6 +2531,7 @@ async function executeToolAction(shared: AgentShared, action: AgentActionRecord)
 	action.control = execution.control;
 	if (action.tool === "analyze_image") {
 		const total = getVisionTaskUsage(shared.taskId);
+		if (execution.output.requestIssued === true) total.requestCount++;
 		const usage = execution.output.usage as {prompt_tokens?: number; completion_tokens?: number; total_tokens?: number} | undefined;
 		if (usage && typeof usage.prompt_tokens === "number" && typeof usage.completion_tokens === "number") {
 			total.reportedRequests++;

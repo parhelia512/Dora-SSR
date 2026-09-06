@@ -1348,8 +1348,15 @@ function normalizeSessionRuntimeState(session) -- 1337
 	if activeStopTokens[session.currentTaskId] ~= nil then -- 1339
 		return session -- 1342
 	end -- 1342
-	local pendingToolRows = queryRows(("SELECT id, result_json FROM " .. TABLE_STEP) .. "\n\t\tWHERE session_id = ? AND task_id = ? AND tool IN (?, ?) AND status IN ('PENDING', 'RUNNING')", {session.id, session.currentTaskId, "fetch_url", "execute_command"}) or ({}) -- 1344
-	if #pendingToolRows > 0 then -- 1344
+	local pendingToolRows = queryRows(("SELECT id, result_json FROM " .. TABLE_STEP) .. "\n\t\tWHERE session_id = ? AND task_id = ? AND tool IN (?, ?, ?, ?) AND status IN ('PENDING', 'RUNNING')", { -- 1344
+		session.id, -- 1347
+		session.currentTaskId, -- 1347
+		"fetch_url", -- 1347
+		"execute_command", -- 1347
+		"preview_game", -- 1347
+		"analyze_image" -- 1347
+	}) or ({}) -- 1347
+	if #pendingToolRows > 0 then -- 1347
 		local t = now() -- 1350
 		do -- 1350
 			local i = 0 -- 1351

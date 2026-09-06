@@ -3,7 +3,7 @@ local ____lualib = require("lualib_bundle") -- 1
 local __TS__StringTrim = ____lualib.__TS__StringTrim -- 1
 local ____exports = {} -- 1
 --- Increment when a fixed vision route or its request profile changes.
-____exports.VISION_PROFILE_VERSION = 1 -- 5
+____exports.VISION_PROFILE_VERSION = 2 -- 5
 --- Only exact, reviewed service endpoints may reuse the current credential.
 function ____exports.resolveVisionBinding(config) -- 15
 	if __TS__StringTrim(config.apiKey) == "" then -- 15

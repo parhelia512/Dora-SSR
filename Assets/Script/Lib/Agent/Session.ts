@@ -1343,8 +1343,8 @@ function normalizeSessionRuntimeState(session: AgentSessionItem): AgentSessionIt
 	}
 	const pendingToolRows = queryRows(
 		`SELECT id, result_json FROM ${TABLE_STEP}
-		WHERE session_id = ? AND task_id = ? AND tool IN (?, ?) AND status IN ('PENDING', 'RUNNING')`,
-		[session.id, session.currentTaskId, "fetch_url", "execute_command"],
+		WHERE session_id = ? AND task_id = ? AND tool IN (?, ?, ?, ?) AND status IN ('PENDING', 'RUNNING')`,
+		[session.id, session.currentTaskId, "fetch_url", "execute_command", "preview_game", "analyze_image"],
 	) ?? [];
 	if (pendingToolRows.length > 0) {
 		const t = now();

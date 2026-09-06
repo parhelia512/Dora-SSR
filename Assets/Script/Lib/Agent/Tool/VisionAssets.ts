@@ -27,6 +27,22 @@ export interface VisionAsset {
 }
 export const VISION_MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export function visionRoot(): string { return Path(Content.appPath, "agent-vision"); }
+
+// Full-file checksum scans are costly for multi-megabyte captures, so keep the
+// exact verified data of the most recent assets. Reloading unchanged content
+// produces the same interned Lua string, which compares by identity in O(1);
+// any changed byte produces a different string and still triggers a full scan.
+const verifiedAssets: Record<string, {data: string; checksum: string; width: number; height: number; bytes: number}> = {};
+const verifiedOrder: string[] = [];
+function rememberVerifiedAsset(asset: {assetId: string; data: string; checksum: string; width: number; height: number; bytes: number}): void {
+	if (verifiedAssets[asset.assetId] === undefined) {
+		verifiedOrder.push(asset.assetId);
+		while (verifiedOrder.length > 3) {
+			delete verifiedAssets[verifiedOrder.shift()!];
+		}
+	}
+	verifiedAssets[asset.assetId] = {data: asset.data, checksum: asset.checksum, width: asset.width, height: asset.height, bytes: asset.bytes};
+}
 export function visionOwner(req: VisionOwner): string {
 	if (!req.sessionId) return `task-${req.taskId}`;
 	const rows = DB.query("SELECT root_session_id, project_root FROM agent.AgentSession WHERE id=?", [req.sessionId]);
@@ -64,6 +80,7 @@ export function publishVisionAsset(req: VisionOwner, metadata: Omit<VisionAsset,
 	const [encoded] = safeJsonEncode(asset);
 	const temp=visionAssetPath(asset.assetId,"json.tmp"), final=visionAssetPath(asset.assetId,"json");
 	if (!encoded || !Content.save(temp,encoded) || !Content.move(temp,final)) error("failed to publish vision asset metadata");
+	rememberVerifiedAsset({assetId: asset.assetId, data, checksum: asset.checksum, width: asset.width, height: asset.height, bytes: asset.bytes});
 	return asset;
 }
 export function readVisionAsset(req: VisionOwner, id: string): {asset: VisionAsset; data: string} {
@@ -76,8 +93,12 @@ export function readVisionAsset(req: VisionOwner, id: string): {asset: VisionAss
 	if (size !== asset.bytes || size > VISION_MAX_IMAGE_BYTES) error("vision asset is missing or damaged");
 	const data = Content.load(visionAssetPath(id));
 	if (!data) error("vision asset is missing");
-	const png = inspectVisionPNG(data);
-	if (png.checksum !== asset.checksum || png.width !== asset.width || png.height !== asset.height) error("vision asset checksum mismatch");
+	const cached = verifiedAssets[id];
+	if (cached === undefined || cached.data !== data || cached.checksum !== asset.checksum || cached.width !== asset.width || cached.height !== asset.height || cached.bytes !== asset.bytes) {
+		const png = inspectVisionPNG(data);
+		if (png.checksum !== asset.checksum || png.width !== asset.width || png.height !== asset.height) error("vision asset checksum mismatch");
+		rememberVerifiedAsset({assetId: id, data, checksum: png.checksum, width: png.width, height: png.height, bytes: data.length});
+	}
 	return {asset,data};
 }
 

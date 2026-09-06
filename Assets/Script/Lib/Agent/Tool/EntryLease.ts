@@ -23,6 +23,9 @@ export function acquireEntryLease(id: string, entry: DevEntryModule): void {
 	if (status.running && (owner !== id || status.runId !== runId)) error("Dora entry runtime is in use; stop the current game before previewing");
 	owner = id;
 }
+// The lease predicts Entry's next run id as (current + 1). This relies on an
+// invariant in Script.Dev.Entry: enterEntryAsync increments its run counter
+// exactly once, synchronously at entry, and nothing else increments it.
 export function recordEntryLeaseRun(id: string, entry: DevEntryModule): void {
 	if (owner === id) runId = (entry.getCurrentEntryStatus().runId ?? 0) + 1;
 }

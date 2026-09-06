@@ -36,7 +36,10 @@ export function parseVisionResponse(raw: string, expectedModel: string): Record<
 	const report = message?.content;
 	const finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason.slice(0, 32) : undefined;
 	if (typeof report !== "string" || report.trim() === "" || finishReason !== "stop") {
-		return {...accounting, success: false, finishReason, message: "Vision returned no complete report"};
+		const message = finishReason === "length"
+			? "Vision report was truncated by the provider output limit before completing (finish_reason=length); narrow the question or analyze fewer images"
+			: "Vision returned no complete report";
+		return {...accounting, success: false, finishReason, message};
 	}
 	return {...accounting, success: true, report: sanitizeUTF8(report.slice(0, 16000)), reportTruncated: report.length > 16000};
 }

@@ -12,35 +12,35 @@ function ____exports.acquireEntryLease(id, entry) -- 20
 	end -- 23
 	owner = id -- 24
 end -- 20
-function ____exports.recordEntryLeaseRun(id, entry) -- 26
-	if owner == id then -- 26
-		runId = (entry.getCurrentEntryStatus().runId or 0) + 1 -- 27
-	end -- 27
-end -- 26
-function ____exports.ownsEntryLease(id, entry) -- 29
-	local status = entry.getCurrentEntryStatus() -- 30
-	return owner == id and status.running and runId ~= nil and status.runId == runId -- 31
+function ____exports.recordEntryLeaseRun(id, entry) -- 29
+	if owner == id then -- 29
+		runId = (entry.getCurrentEntryStatus().runId or 0) + 1 -- 30
+	end -- 30
 end -- 29
-function ____exports.releaseEntryLease(id, entry) -- 33
-	if owner ~= id then -- 33
-		return nil -- 34
-	end -- 34
-	local cleanupError -- 35
-	do -- 35
-		local function ____catch(e) -- 35
-			cleanupError = "failed to stop Agent preview: " .. tostring(e) -- 37
-		end -- 37
-		local ____try, ____hasReturned = pcall(function() -- 37
-			if ____exports.ownsEntryLease(id, entry) and not entry.stop() then -- 37
-				error("entry refused to stop") -- 36
-			end -- 36
-		end) -- 36
-		if not ____try then -- 36
-			____catch(____hasReturned) -- 36
-		end -- 36
-	end -- 36
-	owner = "" -- 38
-	runId = nil -- 38
-	return cleanupError -- 39
-end -- 33
-return ____exports -- 33
+function ____exports.ownsEntryLease(id, entry) -- 32
+	local status = entry.getCurrentEntryStatus() -- 33
+	return owner == id and status.running and runId ~= nil and status.runId == runId -- 34
+end -- 32
+function ____exports.releaseEntryLease(id, entry) -- 36
+	if owner ~= id then -- 36
+		return nil -- 37
+	end -- 37
+	local cleanupError -- 38
+	do -- 38
+		local function ____catch(e) -- 38
+			cleanupError = "failed to stop Agent preview: " .. tostring(e) -- 40
+		end -- 40
+		local ____try, ____hasReturned = pcall(function() -- 40
+			if ____exports.ownsEntryLease(id, entry) and not entry.stop() then -- 40
+				error("entry refused to stop") -- 39
+			end -- 39
+		end) -- 39
+		if not ____try then -- 39
+			____catch(____hasReturned) -- 39
+		end -- 39
+	end -- 39
+	owner = "" -- 41
+	runId = nil -- 41
+	return cleanupError -- 42
+end -- 36
+return ____exports -- 36
