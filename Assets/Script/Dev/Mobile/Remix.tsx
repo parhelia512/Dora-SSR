@@ -467,7 +467,17 @@ export function startMobileRemix(options: RemixOptions) {
 		const question = questionnaire?.schema.questions[questionIndex];
 		const questionPromptWidth = contentWidth - 32;
 		const questionPromptHeight = question ? measureWrappedTextHeight(question.prompt, questionPromptWidth, 16) : 0;
-		const questionAnswerTop = safe.height - 405 - questionPromptHeight / 2 - 14;
+		// The card grows upward with the prompt and option count so short windows
+		// never stack the last option on top of the bottom action buttons.
+		const questionOptions = question && question.type !== "text" ? (question.options ?? []).slice(0, 8) : [];
+		const questionAnswerHeight = questionOptions.length > 0 ? 40 + 43 * (questionOptions.length - 1) : 92;
+		const questionCardMinHeight = safe.height - 330;
+		const questionCardMaxHeight = math.max(questionCardMinHeight, safe.height - 164 - 72);
+		const questionCardHeight = math.min(
+			math.max(questionCardMinHeight, 75 + questionPromptHeight / 2 + 14 + questionAnswerHeight + 16 + 40 + 12),
+			questionCardMaxHeight
+		);
+		const questionAnswerTop = questionCardHeight - 75 - questionPromptHeight / 2 - 14;
 		const questionHasBack = questionIndex > 0;
 		const questionCanSkip = question !== undefined && !question.required;
 		const questionActionGap = 8;
@@ -629,10 +639,10 @@ export function startMobileRemix(options: RemixOptions) {
 						textWidth={-1} alignment={TextAlign.Left} color3={colors.muted} />
 				</clip-node>
 			</node>
-			{questionnaire && question ? <node tag="remix-questionnaire" x={left + 16} y={bottom + 164} width={contentWidth} height={safe.height - 330} anchorX={0} anchorY={0}>
-				<RoundedSurface width={contentWidth} height={safe.height - 330} radius={20} topColor={0xff222b3a} bottomColor={0xff121720} borderWidth={1} borderColor={0xff414b5d} shadow={true} />
-				<label x={16} y={safe.height - 360} anchorX={0} fontName={fontName} fontSize={13} text={`${questionIndex + 1} / ${questionnaire.schema.questions.length} · ${questionnaire.schema.title}`} textWidth={contentWidth - 32} alignment={TextAlign.Left} color3={0xffcc33} />
-				<label tag="remix-question-prompt" x={16} y={safe.height - 405} anchorX={0} fontName={fontName} fontSize={16} text={question.prompt} textWidth={questionPromptWidth} alignment={TextAlign.Left} color3={0xf4f1e8} />
+			{questionnaire && question ? <node tag="remix-questionnaire" x={left + 16} y={bottom + 164} width={contentWidth} height={questionCardHeight} anchorX={0} anchorY={0}>
+				<RoundedSurface width={contentWidth} height={questionCardHeight} radius={20} topColor={0xff222b3a} bottomColor={0xff121720} borderWidth={1} borderColor={0xff414b5d} shadow={true} />
+				<label x={16} y={questionCardHeight - 30} anchorX={0} fontName={fontName} fontSize={13} text={`${questionIndex + 1} / ${questionnaire.schema.questions.length} · ${questionnaire.schema.title}`} textWidth={contentWidth - 32} alignment={TextAlign.Left} color3={0xffcc33} />
+				<label tag="remix-question-prompt" x={16} y={questionCardHeight - 75} anchorX={0} fontName={fontName} fontSize={16} text={question.prompt} textWidth={questionPromptWidth} alignment={TextAlign.Left} color3={0xf4f1e8} />
 				{question.type !== "text" ? (question.options ?? []).slice(0, 8).map((option, optionIndex) => <ChoiceButton
 					tag={`remix-question-${question.id}-option-${option.id}`}
 					x={16} y={questionAnswerTop - 40 - optionIndex * 43} width={contentWidth - 32}

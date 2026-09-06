@@ -1,11 +1,10 @@
-import { App, Color, Color3, Director, DrawNode, Label, Node, Size, Sprite, TextAlign, Vec2 } from "Dora";
+import { App, Color, Color3, DrawNode, Label, Node, Size, TextAlign, Vec2 } from "Dora";
 import * as ScrollArea from "UI/Control/Basic/ScrollArea";
 import type { AgentSessionDetailResult } from "Agent/Session";
 import { safeJsonEncode } from "Agent/Utils";
 import { compactAgentActivity } from "Dev/Mobile/RemixModel";
 import { parseLightMarkdown } from "Dev/Mobile/LightMarkdown";
 import { remixHistory, REMIX_HISTORY_ROUNDS } from "Dev/Mobile/RemixHistory";
-import { readSessionVisionAsset, visionAssetPath } from "Agent/Tool/VisionAssets";
 
 export interface RemixTranscriptAction {
 	id: "continue" | "start-development";
@@ -14,7 +13,7 @@ export interface RemixTranscriptAction {
 	onTapped(this: void): void;
 }
 
-interface Item { id: string; title: string; text: string; user: boolean; activity: boolean; actions?: RemixTranscriptAction[]; sessionId?: number; assetIds?: string[]; }
+interface Item { id: string; title: string; text: string; user: boolean; activity: boolean; actions?: RemixTranscriptAction[]; }
 type Scroll = ReturnType<typeof ScrollArea> & {
 	offset: Vec2.Type;
 	resetSize(this: Scroll, width: number, height: number, viewWidth: number, viewHeight: number): void;
@@ -52,12 +51,10 @@ function itemsFor(detail: AgentSessionDetailResult, zh: boolean, actions: RemixT
 		const message = (s.status === "RUNNING" || vision) && typeof s.result?.message === "string" ? s.result.message : "";
 		const report = vision && typeof s.result?.report === "string" ? s.result.report : "";
 		const model = vision && typeof s.result?.model === "string" ? s.result.model : "";
-		const assets = vision && type(s.result?.assets) === "table" ? s.result!.assets as {assetId?: string}[] : [];
-		const assetIds = assets.filter(a => typeof a.assetId === "string").slice(0, 3).map(a => a.assetId!);
 		const title = compactAgentActivity(s.tool, "", zh, s.status === "RUNNING");
 		return { id: `step-${s.id}`, title: `${state}${progress} · ${title}`,
 			text: s.reason + (message !== "" ? `\n${message}` : "") + (model !== "" ? `\n${zh ? "看图模型" : "Vision model"}: ${model}` : "") + (report !== "" ? `\n${report}` : ""),
-			sessionId: s.sessionId, assetIds, user: false, activity: true };
+			user: false, activity: true };
 	});
 	let inserted = false;
 	for (const m of history.messages) {
@@ -126,7 +123,6 @@ function makeCard(item: Item, width: number, scale: number, zh: boolean): Node.T
 	card.anchor = Vec2(0, 1);
 	card.width = width;
 	const labels: { label: Label.Type; top: number }[] = [];
-	const images: {node: Node.Type; top: number}[] = [];
 	let top = 12;
 	const add = (text: string, size: number, color: number) => {
 		const l = Label(font, math.floor(size * scale), true);
@@ -140,40 +136,6 @@ function makeCard(item: Item, width: number, scale: number, zh: boolean): Node.T
 		add(block.text, block.kind === "heading1" ? 17 : block.kind === "heading2" ? 16 : 14,
 			block.kind === "code" ? 0xffcc33 : 0xf4f1e8);
 	}
-	let enlarged: Node.Type | undefined;
-	card.onCleanup(() => { enlarged?.removeFromParent(true); enlarged = undefined; });
-	for (const assetId of item.assetIds ?? []) {
-		try {
-			readSessionVisionAsset(item.sessionId ?? 0, assetId);
-			const picture = Sprite(visionAssetPath(assetId));
-			if (!picture) error("Image unavailable");
-			const factor = math.min((width - 28) / picture.width, 160 / picture.height);
-			picture.scaleX = factor; picture.scaleY = factor;
-			picture.anchor = Vec2(0, 1); picture.x = 14;
-			picture.touchEnabled = true;
-			picture.onTapped(() => {
-				enlarged?.removeFromParent(true);
-				// Keep the viewer inside the existing Remix tool root, including when
-				// opened during a preview. A new systemUI root would look like game HUD.
-				let toolRoot = card;
-				while (toolRoot.parent && toolRoot.parent !== Director.systemUI) toolRoot = toolRoot.parent;
-				const overlay = Node(); enlarged = overlay;
-				overlay.tag = "remix-vision-enlarged"; overlay.order = 10000;
-				overlay.size = App.visualSize; overlay.touchEnabled = true; overlay.swallowTouches = true;
-				const {width: w, height: h} = App.visualSize;
-				const shade = DrawNode();
-				shade.drawPolygon([Vec2.zero, Vec2(w,0), Vec2(w,h), Vec2(0,h)], Color(0xf511151c));
-				overlay.addChild(shade);
-				const full = Sprite(visionAssetPath(assetId));
-				if (full) { const s = math.min((w-24)/full.width, (h-72)/full.height); full.scaleX = s; full.scaleY = s; full.position = Vec2(w/2,h/2); overlay.addChild(full); }
-				const close = Label(font, 14, true);
-				if (close) { close.text = zh ? "点击关闭" : "Tap to close"; close.position = Vec2(w/2,h-28); overlay.addChild(close); }
-				overlay.onTapped(() => { overlay.removeFromParent(true); enlarged = undefined; });
-				overlay.addTo(toolRoot);
-			});
-			images.push({node: picture, top}); top += picture.height * factor + 8;
-		} catch (_) { add(zh ? "截图不可用或已清理" : "Capture unavailable or removed", 13, 0xa8afbd); }
-	}
 	if (!item.user && !item.activity) {
 		add(zh ? "复制全文" : "Copy message", 13, 0xffcc33);
 		const copy = labels[labels.length - 1]?.label;
@@ -185,7 +147,6 @@ function makeCard(item: Item, width: number, scale: number, zh: boolean): Node.T
 		Color(item.user ? 0xff202632 : 0xff171c26), 1, Color(0xff343b48));
 	card.addChild(bg);
 	for (const row of labels) { row.label.y = card.height - row.top; card.addChild(row.label); }
-	for (const row of images) { row.node.y = card.height - row.top; card.addChild(row.node); }
 	return card;
 }
 
@@ -245,7 +206,7 @@ export function createRemixTranscript() {
 			let changed = layoutChanged;
 			rows = itemsFor(detail, zh, actions).map(item => {
 				const signature = safeJsonEncode({ id: item.id, title: item.title, text: item.text, user: item.user,
-					activity: item.activity, sessionId: item.sessionId, assetIds: item.assetIds, actions: item.actions?.map(action => [action.id, action.text, action.primary === true]) })[0] ?? "";
+					activity: item.activity, actions: item.actions?.map(action => [action.id, action.text, action.primary === true]) })[0] ?? "";
 				const existing = previous.find(row => row.id === item.id);
 				if (!layoutChanged && existing?.signature === signature) return existing;
 				changed = true;
