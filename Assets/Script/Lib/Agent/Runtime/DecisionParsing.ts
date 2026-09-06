@@ -172,8 +172,7 @@ export function parseXMLToolCallObjectFromText(text: string): { success: true; o
 	}
 	// XML child contents are raw text. Decode the vision tools' explicitly
 	// array-valued fields before semantic validation; never coerce scalars.
-	const arrayField = rawObj.tool === "analyze_image" ? "assetIds"
-		: rawObj.tool === "preview_game" ? "captureAtSeconds" : undefined;
+	const arrayField = rawObj.tool === "analyze_image" ? "paths" : undefined;
 	if (arrayField !== undefined && typeof params.obj[arrayField] === "string") {
 		const [decoded] = AgentUtils.safeJsonDecode(params.obj[arrayField] as string);
 		if (Array.isArray(decoded)) params.obj[arrayField] = decoded;

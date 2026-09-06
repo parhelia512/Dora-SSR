@@ -4,7 +4,6 @@ import type { SQL } from 'Dora';
 import { runCodingAgent, CodingAgentEvent, CodingAgentRunResult, truncateAgentUserPrompt } from 'Agent/DoraAgent';
 import type { AgentCompletionReport, AgentTokenUsageMetric } from 'Agent/DoraAgent';
 import type { VisionTaskUsage } from 'Agent/Tool/VisionAnalysis';
-import { removeVisionSessionAssets, renameVisionSessionAssets } from 'Agent/Tool/VisionAssets';
 import * as AgentToolRegistry from 'Agent/Tool/Registry';
 import * as AgentRuntimePolicy from 'Agent/Runtime/Policy';
 import * as Tools from 'Agent/Tools';
@@ -906,7 +905,6 @@ function deleteSessionRecords(sessionId: number, preserveArtifacts = false) {
 	DB.exec(`DELETE FROM ${TABLE_SESSION} WHERE id = ?`, [sessionId]);
 	if (session && session.kind === "main") {
 		removePendingQuestionnaire(session);
-		if (!preserveArtifacts) removeVisionSessionAssets(session.rootSessionId > 0 ? session.rootSessionId : session.id);
 	}
 	if (!preserveArtifacts && session && session.kind === "sub" && session.memoryScope !== "") {
 		if (Content.remove(Path(session.projectRoot, ".agent", session.memoryScope))) {
@@ -1344,7 +1342,7 @@ function normalizeSessionRuntimeState(session: AgentSessionItem): AgentSessionIt
 	const pendingToolRows = queryRows(
 		`SELECT id, result_json FROM ${TABLE_STEP}
 		WHERE session_id = ? AND task_id = ? AND tool IN (?, ?, ?, ?) AND status IN ('PENDING', 'RUNNING')`,
-		[session.id, session.currentTaskId, "fetch_url", "execute_command", "preview_game", "analyze_image"],
+		[session.id, session.currentTaskId, "fetch_url", "execute_command", "analyze_image"],
 	) ?? [];
 	if (pendingToolRows.length > 0) {
 		const t = now();
@@ -2276,9 +2274,6 @@ export function renameSessionsByProjectRoot(oldRoot: string, newRoot: string) {
 		const nextProjectRoot = rebaseProjectRoot(projectRoot, oldRoot, newRoot);
 		if (sessionId > 0 && nextProjectRoot) {
 			const rootSessionId = typeof row[2] === "number" && row[2] > 0 ? row[2] : sessionId;
-			if (!renameVisionSessionAssets(rootSessionId as number, projectRoot, nextProjectRoot)) {
-				return { success: false as const, message: "failed to move vision evidence metadata", renamed };
-			}
 			DB.exec(
 				`UPDATE ${TABLE_SESSION} SET project_root = ?, title = ?, updated_at = ? WHERE id = ?`,
 				[nextProjectRoot, Path.getFilename(nextProjectRoot), now(), sessionId],

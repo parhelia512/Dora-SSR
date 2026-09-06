@@ -17,7 +17,6 @@ export type AgentToolName =
 	| "build"
 	| "fetch_url"
 	| "execute_command"
-	| "preview_game"
 	| "analyze_image"
 	| "list_sub_agents"
 	| "spawn_sub_agent"

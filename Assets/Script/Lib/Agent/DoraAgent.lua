@@ -27,7 +27,7 @@ local resolveVisionBinding = ____VisionBinding.resolveVisionBinding -- 2
 local ____VisionAnalysis = require("Agent.Tool.VisionAnalysis") -- 3
 local getVisionTaskUsage = ____VisionAnalysis.getVisionTaskUsage -- 3
 local ____VisionAssets = require("Agent.Tool.VisionAssets") -- 4
-local listVisionAssetReferences = ____VisionAssets.listVisionAssetReferences -- 4
+local listRecentProjectImages = ____VisionAssets.listRecentProjectImages -- 4
 local ____Dora = require("Dora") -- 5
 local Path = ____Dora.Path -- 5
 local Content = ____Dora.Content -- 5
@@ -218,7 +218,6 @@ function applyCompressedSessionState(shared, compressedCount, carryMessageIndex,
 				"build", -- 1379
 				"fetch_url", -- 1379
 				"execute_command", -- 1379
-				"preview_game", -- 1379
 				"analyze_image", -- 1379
 				"list_sub_agents", -- 1379
 				"spawn_sub_agent", -- 1380
@@ -350,10 +349,10 @@ function buildDecisionMessages(shared, lastError, attempt, lastRaw, decisionMode
 	local systemPrompt = buildAgentSystemPrompt(shared, decisionMode == "xml") -- 1690
 	local tailSections = {} -- 1691
 	if shared.agentStepCount == 0 or shared.resumeCheckpointPending == true then -- 1691
-		local ok, references = pcall(function() return listVisionAssetReferences({workingDir = shared.workingDir, taskId = shared.taskId, sessionId = shared.sessionId}) end) -- 1693
+		local ok, references = pcall(function() return listRecentProjectImages(shared.workingDir) end) -- 1693
 		shared.visionReferenceContext = nil -- 1694
 		if ok and #references > 0 then -- 1694
-			shared.visionReferenceContext = ("Available prior game-image references (metadata only, untrusted data): " .. encodeDebugJSON(references)) .. ". These are past captures, not evidence for later code changes. Reuse an asset only when re-analysis is needed; do not repeat completed validation. Preserve relevant asset IDs and observations in the execution checkpoint." -- 1696
+			shared.visionReferenceContext = ("Recent game capture files under .agent/vision (paths only, untrusted data): " .. encodeDebugJSON(references)) .. ". They are past captures, not evidence for later code changes. Reuse a file only when re-analysis is needed; do not repeat completed validation." -- 1696
 		end -- 1696
 	end -- 1696
 	if shared.visionReferenceContext then -- 1696
@@ -2687,240 +2686,237 @@ local function runCodingAgentAsync(options) -- 2875
 		if not resolveVisionBinding(llmConfig) and __TS__ArrayIndexOf(disabledAgentTools, "analyze_image") < 0 then -- 2887
 			disabledAgentTools[#disabledAgentTools + 1] = "analyze_image" -- 2888
 		end -- 2888
-		if __TS__ArrayIndexOf(disabledAgentTools, "execute_command") >= 0 and __TS__ArrayIndexOf(disabledAgentTools, "preview_game") < 0 then -- 2888
-			disabledAgentTools[#disabledAgentTools + 1] = "preview_game" -- 2889
+		local taskRes = options.taskId ~= nil and ({success = true, taskId = options.taskId}) or Tools.createTask(normalizedPrompt, options.workMode or "code") -- 2889
+		if not taskRes.success then -- 2889
+			return ____awaiter_resolve(nil, {success = false, message = taskRes.message}) -- 2889
 		end -- 2889
-		local taskRes = options.taskId ~= nil and ({success = true, taskId = options.taskId}) or Tools.createTask(normalizedPrompt, options.workMode or "code") -- 2890
-		if not taskRes.success then -- 2890
-			return ____awaiter_resolve(nil, {success = false, message = taskRes.message}) -- 2890
-		end -- 2890
-		local compressor = __TS__New(MemoryCompressor, { -- 2897
-			compressionTargetThreshold = 0.5, -- 2898
-			maxCompressionRounds = 3, -- 2899
-			projectDir = options.workDir, -- 2900
-			llmConfig = llmConfig, -- 2901
-			promptPack = options.promptPack, -- 2902
-			scope = options.memoryScope -- 2903
-		}) -- 2903
-		local persistedSession = compressor:getStorage():readSessionState() -- 2905
-		local effectiveUserQuery = normalizedPrompt -- 2906
-		if options.resumeConversation == true and __TS__StringTrim(normalizedPrompt) == "" then -- 2906
-			do -- 2906
-				local i = #persistedSession.messages - 1 -- 2908
-				while i >= 0 do -- 2908
-					local message = persistedSession.messages[i + 1] -- 2909
-					if message.role == "user" and type(message.content) == "string" and __TS__StringTrim(message.content) ~= "" then -- 2909
-						effectiveUserQuery = message.content -- 2911
-						break -- 2912
-					end -- 2912
-					i = i - 1 -- 2908
-				end -- 2908
-			end -- 2908
-		end -- 2908
-		local promptPack = compressor:getPromptPack() -- 2916
-		local freshProject = inspectFreshProject(options.workDir) -- 2917
-		local freshProjectBuildPending = freshProject.fresh -- 2918
-		local freshProjectCodeFile = freshProject.codeFile -- 2919
-		local shared = { -- 2921
-			sessionId = options.sessionId, -- 2922
-			taskId = taskRes.taskId, -- 2923
-			role = options.role or "main", -- 2924
-			maxSteps = math.max( -- 2925
+		local compressor = __TS__New(MemoryCompressor, { -- 2896
+			compressionTargetThreshold = 0.5, -- 2897
+			maxCompressionRounds = 3, -- 2898
+			projectDir = options.workDir, -- 2899
+			llmConfig = llmConfig, -- 2900
+			promptPack = options.promptPack, -- 2901
+			scope = options.memoryScope -- 2902
+		}) -- 2902
+		local persistedSession = compressor:getStorage():readSessionState() -- 2904
+		local effectiveUserQuery = normalizedPrompt -- 2905
+		if options.resumeConversation == true and __TS__StringTrim(normalizedPrompt) == "" then -- 2905
+			do -- 2905
+				local i = #persistedSession.messages - 1 -- 2907
+				while i >= 0 do -- 2907
+					local message = persistedSession.messages[i + 1] -- 2908
+					if message.role == "user" and type(message.content) == "string" and __TS__StringTrim(message.content) ~= "" then -- 2908
+						effectiveUserQuery = message.content -- 2910
+						break -- 2911
+					end -- 2911
+					i = i - 1 -- 2907
+				end -- 2907
+			end -- 2907
+		end -- 2907
+		local promptPack = compressor:getPromptPack() -- 2915
+		local freshProject = inspectFreshProject(options.workDir) -- 2916
+		local freshProjectBuildPending = freshProject.fresh -- 2917
+		local freshProjectCodeFile = freshProject.codeFile -- 2918
+		local shared = { -- 2920
+			sessionId = options.sessionId, -- 2921
+			taskId = taskRes.taskId, -- 2922
+			role = options.role or "main", -- 2923
+			maxSteps = math.max( -- 2924
+				1, -- 2924
+				math.floor(options.maxSteps or AgentConfig.AGENT_DEFAULTS.maxSteps) -- 2924
+			), -- 2924
+			llmMaxTry = math.max( -- 2925
 				1, -- 2925
-				math.floor(options.maxSteps or AgentConfig.AGENT_DEFAULTS.maxSteps) -- 2925
+				math.floor(options.llmMaxTry or AgentConfig.AGENT_DEFAULTS.llmMaxTry) -- 2925
 			), -- 2925
-			llmMaxTry = math.max( -- 2926
-				1, -- 2926
-				math.floor(options.llmMaxTry or AgentConfig.AGENT_DEFAULTS.llmMaxTry) -- 2926
+			step = math.max( -- 2926
+				0, -- 2926
+				math.floor(options.initialStep or 0) -- 2926
 			), -- 2926
-			step = math.max( -- 2927
+			agentStepCount = math.max( -- 2927
 				0, -- 2927
-				math.floor(options.initialStep or 0) -- 2927
+				math.floor(options.initialAgentStepCount or 0) -- 2927
 			), -- 2927
-			agentStepCount = math.max( -- 2928
-				0, -- 2928
-				math.floor(options.initialAgentStepCount or 0) -- 2928
-			), -- 2928
-			done = false, -- 2929
-			stopToken = options.stopToken or ({stopped = false}), -- 2930
-			response = "", -- 2931
-			userQuery = effectiveUserQuery, -- 2932
-			workingDir = options.workDir, -- 2933
-			useChineseResponse = options.useChineseResponse == true, -- 2934
-			workMode = options.workMode or "code", -- 2935
-			decisionMode = options.decisionMode and options.decisionMode or (llmConfig.supportsFunctionCalling and "tool_calling" or "xml"), -- 2936
-			llmOptions = buildLLMOptions(llmConfig, options.llmOptions), -- 2939
-			llmConfig = llmConfig, -- 2940
-			onEvent = options.onEvent, -- 2941
-			promptPack = promptPack, -- 2942
-			history = {}, -- 2943
-			messages = persistedSession.messages, -- 2944
-			lastConsolidatedIndex = persistedSession.lastConsolidatedIndex, -- 2945
-			carryMessageIndex = persistedSession.carryMessageIndex, -- 2946
-			workflow = {freshProjectBuildPending = freshProjectBuildPending, freshProjectCodeFile = freshProjectCodeFile, hasSpawnedSubAgentThisTask = false, delegatedForegroundBatches = 0}, -- 2947
-			memory = {compressor = compressor}, -- 2954
-			skills = {loader = AgentSkills.createSkillsLoader({ -- 2958
-				projectDir = options.workDir, -- 2960
-				disabledAgentTools = disabledAgentTools, -- 2961
-				allowedAgentTools = AgentToolRegistry.getAllowedToolsForRole(options.role or "main", {workMode = options.workMode or "code", disabledAgentTools = disabledAgentTools}) -- 2962
-			})}, -- 2962
-			spawnSubAgent = options.spawnSubAgent, -- 2968
-			listSubAgents = options.listSubAgents, -- 2969
-			publishQuestionnaire = options.publishQuestionnaire, -- 2970
-			disabledAgentTools = disabledAgentTools, -- 2971
-			tokenUsage = options.initialTokenUsage -- 2972
-		} -- 2972
-		local ____hasReturned, ____returnValue -- 2972
-		local ____try = __TS__AsyncAwaiter(function() -- 2972
-			if shared.workMode == "plan" then -- 2972
-				local planDocuments = AgentRuntimePolicy.ensureAgentPlanDocuments(shared.workingDir) -- 2977
-				if not planDocuments.success then -- 2977
-					Tools.setTaskStatus(shared.taskId, "FAILED") -- 2979
-					____hasReturned = true -- 2980
-					____returnValue = {success = false, taskId = shared.taskId, message = planDocuments.message} -- 2980
-					return -- 2980
-				end -- 2980
-			end -- 2980
-			emitAgentEvent(shared, { -- 2983
-				type = "task_started", -- 2984
-				sessionId = shared.sessionId, -- 2985
-				taskId = shared.taskId, -- 2986
-				prompt = shared.userQuery, -- 2987
-				workDir = shared.workingDir, -- 2988
-				maxSteps = shared.maxSteps, -- 2989
-				resumed = options.resumeTask == true -- 2990
-			}) -- 2990
-			if shared.stopToken.stopped then -- 2990
-				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 2993
-				____hasReturned = true -- 2994
-				____returnValue = emitAgentTaskFinishEvent( -- 2994
-					shared, -- 2994
-					false, -- 2994
-					getCancelledReason(shared) -- 2994
-				) -- 2994
-				return -- 2994
-			end -- 2994
-			Tools.setTaskStatus(shared.taskId, "RUNNING") -- 2996
-			local ____temp_87 -- 2997
-			if options.resumeConversation == true then -- 2997
-				____temp_87 = nil -- 2997
-			else -- 2997
-				____temp_87 = getPromptCommand(shared.userQuery) -- 2997
-			end -- 2997
-			local promptCommand = ____temp_87 -- 2997
-			if promptCommand == "clear" then -- 2997
-				____hasReturned = true -- 2999
-				____returnValue = clearSessionHistory(shared) -- 2999
-				return -- 2999
-			end -- 2999
-			if promptCommand == "compact" then -- 2999
-				if shared.role == "sub" then -- 2999
-					Tools.setTaskStatus(shared.taskId, "FAILED") -- 3003
-					____hasReturned = true -- 3004
-					____returnValue = emitAgentTaskFinishEvent(shared, false, shared.useChineseResponse and "子代理会话不支持 /compact。" or "Sub-agent sessions do not support /compact.") -- 3004
-					return -- 3004
-				end -- 3004
-				____hasReturned = true -- 3012
-				____returnValue = __TS__Await(compactAllHistory(shared)) -- 3012
-				return -- 3012
-			end -- 3012
-			__TS__Await(maybeCompressHistory(shared, true, options.resumeConversation == true and "" or normalizedPrompt)) -- 3014
-			if shared.stopToken.stopped then -- 3014
-				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 3016
-				____hasReturned = true -- 3017
-				____returnValue = emitAgentTaskFinishEvent( -- 3017
-					shared, -- 3017
-					false, -- 3017
-					getCancelledReason(shared) -- 3017
-				) -- 3017
-				return -- 3017
-			end -- 3017
-			if options.resumeConversation ~= true then -- 3017
-				appendConversationMessage(shared, {role = "user", content = normalizedPrompt}) -- 3020
-				persistHistoryState(shared) -- 3024
-			end -- 3024
-			local flow = __TS__New(CodingAgentFlow, shared.role) -- 3026
-			__TS__Await(flow:run(shared)) -- 3027
-			if shared.stopToken.stopped then -- 3027
-				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 3029
-				____hasReturned = true -- 3030
-				____returnValue = emitAgentTaskFinishEvent( -- 3030
-					shared, -- 3030
-					false, -- 3030
-					getCancelledReason(shared) -- 3030
-				) -- 3030
-				return -- 3030
-			end -- 3030
-			if shared.error then -- 3030
-				____hasReturned = true -- 3033
-				____returnValue = finalizeAgentFailure(shared, shared.response and shared.response ~= "" and shared.response or shared.error) -- 3033
-				return -- 3033
-			end -- 3033
-			if shared.workflow.waitingQuestionnaireId ~= nil then -- 3033
-				Tools.setTaskStatus(shared.taskId, "WAITING_USER") -- 3037
-				emitAgentEvent(shared, { -- 3038
-					type = "task_waiting_for_user", -- 3039
-					sessionId = shared.sessionId, -- 3040
-					taskId = shared.taskId, -- 3041
-					step = shared.step, -- 3042
-					questionnaireId = shared.workflow.waitingQuestionnaireId -- 3043
-				}) -- 3043
-				____hasReturned = true -- 3045
-				____returnValue = { -- 3045
-					success = true, -- 3046
-					taskId = shared.taskId, -- 3047
-					message = shared.useChineseResponse and "等待用户填写调查问卷。" or "Waiting for questionnaire feedback.", -- 3048
-					steps = shared.step, -- 3049
-					waitingForUser = true, -- 3050
-					questionnaireId = shared.workflow.waitingQuestionnaireId -- 3051
-				} -- 3051
-				return -- 3045
-			end -- 3045
-			local ____isFinalDecisionTurn_result_90 = isFinalDecisionTurn(shared) -- 3054
-			if ____isFinalDecisionTurn_result_90 then -- 3054
-				local ____opt_88 = shared.completion -- 3054
-				____isFinalDecisionTurn_result_90 = (____opt_88 and ____opt_88.outcome) == "partial" -- 3054
-			end -- 3054
-			if ____isFinalDecisionTurn_result_90 then -- 3054
-				Tools.setTaskStatus(shared.taskId, "FAILED") -- 3055
-				____hasReturned = true -- 3056
-				____returnValue = emitAgentTaskFinishEvent(shared, false, shared.response or (shared.useChineseResponse and "本轮达到处理上限，工作尚未完成。" or "This task reached its processing limit with work remaining.")) -- 3056
-				return -- 3056
-			end -- 3056
-			Tools.setTaskStatus(shared.taskId, "DONE") -- 3059
-			____hasReturned = true -- 3060
-			____returnValue = emitAgentTaskFinishEvent(shared, true, shared.response or (shared.useChineseResponse and "任务完成。" or "Task completed.")) -- 3060
-			return -- 3060
-		end) -- 3060
-		____try = ____try.catch( -- 3060
-			____try, -- 3060
-			function(____, e) -- 3060
-				return __TS__AsyncAwaiter(function() -- 3060
-					____hasReturned = true -- 3063
-					____returnValue = finalizeAgentFailure( -- 3063
-						shared, -- 3063
-						tostring(e) -- 3063
-					) -- 3063
-					return -- 3063
-				end) -- 3063
-			end -- 3063
-		) -- 3063
-		__TS__Await(____try) -- 2975
-		if ____hasReturned then -- 2975
-			return ____awaiter_resolve(nil, ____returnValue) -- 2975
-		end -- 2975
-	end) -- 2975
+			done = false, -- 2928
+			stopToken = options.stopToken or ({stopped = false}), -- 2929
+			response = "", -- 2930
+			userQuery = effectiveUserQuery, -- 2931
+			workingDir = options.workDir, -- 2932
+			useChineseResponse = options.useChineseResponse == true, -- 2933
+			workMode = options.workMode or "code", -- 2934
+			decisionMode = options.decisionMode and options.decisionMode or (llmConfig.supportsFunctionCalling and "tool_calling" or "xml"), -- 2935
+			llmOptions = buildLLMOptions(llmConfig, options.llmOptions), -- 2938
+			llmConfig = llmConfig, -- 2939
+			onEvent = options.onEvent, -- 2940
+			promptPack = promptPack, -- 2941
+			history = {}, -- 2942
+			messages = persistedSession.messages, -- 2943
+			lastConsolidatedIndex = persistedSession.lastConsolidatedIndex, -- 2944
+			carryMessageIndex = persistedSession.carryMessageIndex, -- 2945
+			workflow = {freshProjectBuildPending = freshProjectBuildPending, freshProjectCodeFile = freshProjectCodeFile, hasSpawnedSubAgentThisTask = false, delegatedForegroundBatches = 0}, -- 2946
+			memory = {compressor = compressor}, -- 2953
+			skills = {loader = AgentSkills.createSkillsLoader({ -- 2957
+				projectDir = options.workDir, -- 2959
+				disabledAgentTools = disabledAgentTools, -- 2960
+				allowedAgentTools = AgentToolRegistry.getAllowedToolsForRole(options.role or "main", {workMode = options.workMode or "code", disabledAgentTools = disabledAgentTools}) -- 2961
+			})}, -- 2961
+			spawnSubAgent = options.spawnSubAgent, -- 2967
+			listSubAgents = options.listSubAgents, -- 2968
+			publishQuestionnaire = options.publishQuestionnaire, -- 2969
+			disabledAgentTools = disabledAgentTools, -- 2970
+			tokenUsage = options.initialTokenUsage -- 2971
+		} -- 2971
+		local ____hasReturned, ____returnValue -- 2971
+		local ____try = __TS__AsyncAwaiter(function() -- 2971
+			if shared.workMode == "plan" then -- 2971
+				local planDocuments = AgentRuntimePolicy.ensureAgentPlanDocuments(shared.workingDir) -- 2976
+				if not planDocuments.success then -- 2976
+					Tools.setTaskStatus(shared.taskId, "FAILED") -- 2978
+					____hasReturned = true -- 2979
+					____returnValue = {success = false, taskId = shared.taskId, message = planDocuments.message} -- 2979
+					return -- 2979
+				end -- 2979
+			end -- 2979
+			emitAgentEvent(shared, { -- 2982
+				type = "task_started", -- 2983
+				sessionId = shared.sessionId, -- 2984
+				taskId = shared.taskId, -- 2985
+				prompt = shared.userQuery, -- 2986
+				workDir = shared.workingDir, -- 2987
+				maxSteps = shared.maxSteps, -- 2988
+				resumed = options.resumeTask == true -- 2989
+			}) -- 2989
+			if shared.stopToken.stopped then -- 2989
+				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 2992
+				____hasReturned = true -- 2993
+				____returnValue = emitAgentTaskFinishEvent( -- 2993
+					shared, -- 2993
+					false, -- 2993
+					getCancelledReason(shared) -- 2993
+				) -- 2993
+				return -- 2993
+			end -- 2993
+			Tools.setTaskStatus(shared.taskId, "RUNNING") -- 2995
+			local ____temp_87 -- 2996
+			if options.resumeConversation == true then -- 2996
+				____temp_87 = nil -- 2996
+			else -- 2996
+				____temp_87 = getPromptCommand(shared.userQuery) -- 2996
+			end -- 2996
+			local promptCommand = ____temp_87 -- 2996
+			if promptCommand == "clear" then -- 2996
+				____hasReturned = true -- 2998
+				____returnValue = clearSessionHistory(shared) -- 2998
+				return -- 2998
+			end -- 2998
+			if promptCommand == "compact" then -- 2998
+				if shared.role == "sub" then -- 2998
+					Tools.setTaskStatus(shared.taskId, "FAILED") -- 3002
+					____hasReturned = true -- 3003
+					____returnValue = emitAgentTaskFinishEvent(shared, false, shared.useChineseResponse and "子代理会话不支持 /compact。" or "Sub-agent sessions do not support /compact.") -- 3003
+					return -- 3003
+				end -- 3003
+				____hasReturned = true -- 3011
+				____returnValue = __TS__Await(compactAllHistory(shared)) -- 3011
+				return -- 3011
+			end -- 3011
+			__TS__Await(maybeCompressHistory(shared, true, options.resumeConversation == true and "" or normalizedPrompt)) -- 3013
+			if shared.stopToken.stopped then -- 3013
+				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 3015
+				____hasReturned = true -- 3016
+				____returnValue = emitAgentTaskFinishEvent( -- 3016
+					shared, -- 3016
+					false, -- 3016
+					getCancelledReason(shared) -- 3016
+				) -- 3016
+				return -- 3016
+			end -- 3016
+			if options.resumeConversation ~= true then -- 3016
+				appendConversationMessage(shared, {role = "user", content = normalizedPrompt}) -- 3019
+				persistHistoryState(shared) -- 3023
+			end -- 3023
+			local flow = __TS__New(CodingAgentFlow, shared.role) -- 3025
+			__TS__Await(flow:run(shared)) -- 3026
+			if shared.stopToken.stopped then -- 3026
+				Tools.setTaskStatus(shared.taskId, "STOPPED") -- 3028
+				____hasReturned = true -- 3029
+				____returnValue = emitAgentTaskFinishEvent( -- 3029
+					shared, -- 3029
+					false, -- 3029
+					getCancelledReason(shared) -- 3029
+				) -- 3029
+				return -- 3029
+			end -- 3029
+			if shared.error then -- 3029
+				____hasReturned = true -- 3032
+				____returnValue = finalizeAgentFailure(shared, shared.response and shared.response ~= "" and shared.response or shared.error) -- 3032
+				return -- 3032
+			end -- 3032
+			if shared.workflow.waitingQuestionnaireId ~= nil then -- 3032
+				Tools.setTaskStatus(shared.taskId, "WAITING_USER") -- 3036
+				emitAgentEvent(shared, { -- 3037
+					type = "task_waiting_for_user", -- 3038
+					sessionId = shared.sessionId, -- 3039
+					taskId = shared.taskId, -- 3040
+					step = shared.step, -- 3041
+					questionnaireId = shared.workflow.waitingQuestionnaireId -- 3042
+				}) -- 3042
+				____hasReturned = true -- 3044
+				____returnValue = { -- 3044
+					success = true, -- 3045
+					taskId = shared.taskId, -- 3046
+					message = shared.useChineseResponse and "等待用户填写调查问卷。" or "Waiting for questionnaire feedback.", -- 3047
+					steps = shared.step, -- 3048
+					waitingForUser = true, -- 3049
+					questionnaireId = shared.workflow.waitingQuestionnaireId -- 3050
+				} -- 3050
+				return -- 3044
+			end -- 3044
+			local ____isFinalDecisionTurn_result_90 = isFinalDecisionTurn(shared) -- 3053
+			if ____isFinalDecisionTurn_result_90 then -- 3053
+				local ____opt_88 = shared.completion -- 3053
+				____isFinalDecisionTurn_result_90 = (____opt_88 and ____opt_88.outcome) == "partial" -- 3053
+			end -- 3053
+			if ____isFinalDecisionTurn_result_90 then -- 3053
+				Tools.setTaskStatus(shared.taskId, "FAILED") -- 3054
+				____hasReturned = true -- 3055
+				____returnValue = emitAgentTaskFinishEvent(shared, false, shared.response or (shared.useChineseResponse and "本轮达到处理上限，工作尚未完成。" or "This task reached its processing limit with work remaining.")) -- 3055
+				return -- 3055
+			end -- 3055
+			Tools.setTaskStatus(shared.taskId, "DONE") -- 3058
+			____hasReturned = true -- 3059
+			____returnValue = emitAgentTaskFinishEvent(shared, true, shared.response or (shared.useChineseResponse and "任务完成。" or "Task completed.")) -- 3059
+			return -- 3059
+		end) -- 3059
+		____try = ____try.catch( -- 3059
+			____try, -- 3059
+			function(____, e) -- 3059
+				return __TS__AsyncAwaiter(function() -- 3059
+					____hasReturned = true -- 3062
+					____returnValue = finalizeAgentFailure( -- 3062
+						shared, -- 3062
+						tostring(e) -- 3062
+					) -- 3062
+					return -- 3062
+				end) -- 3062
+			end -- 3062
+		) -- 3062
+		__TS__Await(____try) -- 2974
+		if ____hasReturned then -- 2974
+			return ____awaiter_resolve(nil, ____returnValue) -- 2974
+		end -- 2974
+	end) -- 2974
 end -- 2875
-function ____exports.runCodingAgent(options, callback) -- 3067
-	local ____self_91 = runCodingAgentAsync(options) -- 3067
-	____self_91["then"]( -- 3067
-		____self_91, -- 3067
-		function(____, result) return callback(result) end, -- 3069
-		function(____, errorValue) return callback({ -- 3070
-			success = false, -- 3071
-			taskId = options.taskId, -- 3072
-			message = "coding agent failed before finalization: " .. tostring(errorValue) -- 3073
-		}) end -- 3073
-	) -- 3073
-end -- 3067
-return ____exports -- 3067
+function ____exports.runCodingAgent(options, callback) -- 3066
+	local ____self_91 = runCodingAgentAsync(options) -- 3066
+	____self_91["then"]( -- 3066
+		____self_91, -- 3066
+		function(____, result) return callback(result) end, -- 3068
+		function(____, errorValue) return callback({ -- 3069
+			success = false, -- 3070
+			taskId = options.taskId, -- 3071
+			message = "coding agent failed before finalization: " .. tostring(errorValue) -- 3072
+		}) end -- 3072
+	) -- 3072
+end -- 3066
+return ____exports -- 3066

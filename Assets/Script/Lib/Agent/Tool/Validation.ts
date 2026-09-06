@@ -1,4 +1,5 @@
 // @preview-file off clear
+import { Path } from 'Dora';
 import * as AgentConfig from 'Agent/Config';
 import { normalizeQuestionnaire } from 'Agent/Questionnaire';
 import * as AgentUtils from 'Agent/Utils';
@@ -223,23 +224,15 @@ export function validateAgentToolInput(tool: AgentToolName, input: Record<string
 		value.target = target;
 		return { success: true, value };
 	}
-	if (tool === "preview_game") {
-		if (value.entry !== undefined && (typeof value.entry !== "string" || value.entry.trim() === "" || !isValidWorkspacePath(value.entry))) {
-			return {success: false, message: "preview_game entry must be a project-relative path"};
-		}
-		if (value.captureAtSeconds !== undefined) {
-			if (!Array.isArray(value.captureAtSeconds)) return {success:false, message:"captureAtSeconds must be an array"};
-			const times = value.captureAtSeconds as unknown[];
-			if (times.length < 1 || times.length > 3 || times.some((time, i) => typeof time !== "number" || !Number.isFinite(time) || time < 0 || time > 10 || (i > 0 && time <= (times[i - 1] as number)))) {
-				return {success:false, message:"Choose 1–3 increasing capture times between 0 and 10 seconds"};
-			}
-		}
-		return {success:true, value};
-	}
 	if (tool === "analyze_image") {
-		if (!Array.isArray(value.assetIds) || value.assetIds.length < 1 || value.assetIds.length > 3 || value.assetIds.some(id => typeof id !== "string" || string.match(id, "^%d+%-%d+$")[0] === undefined)) {
-			return {success:false, message:"analyze_image requires 1–3 valid image asset IDs, not paths or URLs"};
+		const imageExt = (path: string) => {
+			const ext = Path.getExt(path).toLowerCase();
+			return ext === "png" || ext === "jpg" || ext === "jpeg";
+		};
+		if (!Array.isArray(value.paths) || value.paths.length < 1 || value.paths.length > 3 || value.paths.some(item => typeof item !== "string" || item.trim() === "" || !isValidWorkspacePath(item.trim()) || !imageExt(item.trim()))) {
+			return {success:false, message:"analyze_image requires 1–3 project-relative PNG/JPEG image paths"};
 		}
+		value.paths = (value.paths as unknown[]).map(item => (item as string).trim());
 		for (const name of ["question", "criteria"]) {
 			const text = value[name];
 			if (name === "criteria" && text === undefined) continue;
@@ -298,7 +291,6 @@ export const AGENT_TOOL_VALIDATORS: Partial<Record<AgentToolName, AgentToolInput
 	glob_files: value => validateAgentToolInput("glob_files", value),
 	build: value => validateAgentToolInput("build", value),
 	fetch_url: value => validateAgentToolInput("fetch_url", value),
-	preview_game: value => validateAgentToolInput("preview_game", value),
 	analyze_image: value => validateAgentToolInput("analyze_image", value),
 	execute_command: value => validateAgentToolInput("execute_command", value),
 	list_sub_agents: value => validateAgentToolInput("list_sub_agents", value),

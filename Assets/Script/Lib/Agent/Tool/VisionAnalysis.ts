@@ -1,9 +1,10 @@
 // @preview-file off clear
-import { App, DB, Director, HttpClient } from 'Dora';
+import { App, Content, DB, Director, HttpClient } from 'Dora';
 const mime = require("mime") as { b64(this: void, value: string): LuaMultiReturn<[string | undefined, string | undefined]> };
 import { safeJsonEncode, safeJsonDecode } from 'Agent/Utils';
 import { VISION_PROFILE_VERSION, type VisionBinding } from 'Agent/Tool/VisionBinding';
-import { readVisionAsset, type VisionOwner } from 'Agent/Tool/VisionAssets';
+import { inspectImage } from 'Agent/Tool/VisionAssets';
+import { resolveWorkspaceFilePath } from 'Agent/Tool/Workspace';
 import { ANALYZE_IMAGE_HTTP_TIMEOUT_SECONDS } from 'Agent/Tool/ToolBudgets';
 import { TABLE_STEP } from 'Agent/Storage/Database';
 import { normalizeVisionUsage, parseVisionResponse } from 'Agent/Tool/VisionResponse';
@@ -41,10 +42,21 @@ export function getVisionTaskUsage(taskId: number): VisionTaskUsage {
 	return usage;
 }
 
-export async function analyzeImage(req: VisionOwner & { binding?: VisionBinding; assetIds: string[]; question: string; criteria?: string; isCancelled: () => boolean }): Promise<Record<string, unknown>> {
+export interface AnalyzeImageRequest {
+	workingDir: string;
+	taskId: number;
+	sessionId?: number;
+	binding?: VisionBinding;
+	paths: string[];
+	question: string;
+	criteria?: string;
+	isCancelled: () => boolean;
+}
+
+export async function analyzeImage(req: AnalyzeImageRequest): Promise<Record<string, unknown>> {
 	const binding=req.binding;
 	if (!binding) return {success:false, message:"No default vision route is registered for the current Agent service"};
-	const validation = validateAgentToolInput("analyze_image", {assetIds:req.assetIds, question:req.question, criteria:req.criteria});
+	const validation = validateAgentToolInput("analyze_image", {paths:req.paths, question:req.question, criteria:req.criteria});
 	if (!validation.success) return {success:false,message:validation.message};
 	const start=App.runningTime;
 	// Set once the provider request leaves; only then does a call consume budget.
@@ -56,14 +68,18 @@ export async function analyzeImage(req: VisionOwner & { binding?: VisionBinding;
 		// not part of it yet; the >= check keeps this call the last allowed one.
 		if (budget.requestCount >= 12 || budget.totalTokens >= 60000) return {success:false, message:`Vision task budget exhausted: ${budget.requestCount} issued requests and ${budget.totalTokens} reported tokens already used (limits are 12 requests and 60000 tokens)`, visionUsage:budget};
 		const content: Record<string,unknown>[]=[{type:"text",text:req.question+(req.criteria ? `\nAcceptance criteria: ${req.criteria}` : "")}];
-		const assets=[];
-		for (let i=0;i<req.assetIds.length;i++) {
-			const {asset,data}=readVisionAsset(req,req.assetIds[i]);
+		const images=[];
+		for (let i=0;i<req.paths.length;i++) {
+			const fullPath = resolveWorkspaceFilePath(req.workingDir, req.paths[i]);
+			if (!fullPath) error(`image path escapes the project: ${req.paths[i]}`);
+			const data = Content.load(fullPath);
+			if (!data) error(`image not found: ${req.paths[i]}`);
+			const inspected = inspectImage(data);
 			const [encoded]=mime.b64(data);
 			if (!encoded) error("Unable to encode image");
-			assets.push(asset);
-			content.push({type:"text",text:`Image ${i+1}; asset ${asset.assetId}; ${asset.width}x${asset.height}`});
-			content.push({type:"image_url",image_url:{url:`data:image/png;base64,${encoded}`}});
+			images.push({path:req.paths[i], width:inspected.width, height:inspected.height});
+			content.push({type:"text",text:`Image ${i+1}; ${req.paths[i]}${inspected.width !== undefined ? `; ${inspected.width}x${inspected.height}` : ""}`});
+			content.push({type:"image_url",image_url:{url:(inspected.format==="jpeg"?"data:image/jpeg;base64,":"data:image/png;base64,")+encoded}});
 		}
 		const body={model:binding.model,stream:false,max_tokens:binding.provider==="glm-coding-cn"?8192:4096,thinking:{type:binding.provider==="deepseek"?"disabled":"enabled"},
 			...(binding.provider==="glm-coding-cn"?{temperature:0.8,top_p:0.6}:{}),
@@ -98,7 +114,7 @@ export async function analyzeImage(req: VisionOwner & { binding?: VisionBinding;
 		});
 		if(req.isCancelled())return {success:false,cancelled:true,message:"Vision analysis cancelled"};
 		const result = parseVisionResponse(raw, binding.model);
-		return {...result,requestIssued,provider:binding.provider,bindingId:`${binding.provider}/${binding.model}`,profileVersion:VISION_PROFILE_VERSION,assetIds:req.assetIds,assets,latencySeconds:App.runningTime-start,evidence:"static_game_images"};
+		return {...result,requestIssued,provider:binding.provider,bindingId:`${binding.provider}/${binding.model}`,profileVersion:VISION_PROFILE_VERSION,paths:req.paths,images,latencySeconds:App.runningTime-start,evidence:"static_game_images"};
 	} catch(e) {
 		// Local errors only; provider payloads and credentials never enter tool output.
 		return {success:false,cancelled:req.isCancelled(),requestIssued,message:tostring(e).split(binding.apiKey).join("[redacted]")};

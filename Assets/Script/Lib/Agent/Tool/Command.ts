@@ -16,6 +16,7 @@ import {
 } from 'Agent/Tool/Workspace';
 
 import { acquireEntryLease, recordEntryLeaseRun, ownsEntryLease, releaseEntryLease, type DevEntryModule } from 'Agent/Tool/EntryLease';
+import { createPreviewGameInjection } from 'Agent/Tool/CommandPreview';
 interface AgentEntryDescriptor { entryName?: string; fileName?: string; }
 
 const LUA_COMMAND_DEFAULT_TIMEOUT_SECONDS = 30;
@@ -137,6 +138,12 @@ function executeLuaCommand(req: {
 	};
 	const env = setmetatable({
 		projectDir: req.workDir,
+		previewGame: createPreviewGameInjection({
+			workDir: req.workDir,
+			operationId: req.operationId,
+			isCancelled: req.isCancelled,
+			print: line => capturePrint(line),
+		}, entry),
 		requireProjectModule: (moduleNameValue: unknown, reloadModulesValue?: unknown): unknown => {
 			if (typeof moduleNameValue !== "string") {
 				error("requireProjectModule expects a project module name string");

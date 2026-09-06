@@ -1,7 +1,7 @@
 // @preview-file off clear
 import { resolveVisionBinding } from 'Agent/Tool/VisionBinding';
 import { getVisionTaskUsage, type VisionTaskUsage } from 'Agent/Tool/VisionAnalysis';
-import { listVisionAssetReferences } from 'Agent/Tool/VisionAssets';
+import { listRecentProjectImages } from 'Agent/Tool/VisionAssets';
 import { Path, Content } from 'Dora';
 import { Flow, Node } from 'Agent/flow';
 import * as AgentUtils from 'Agent/Utils';
@@ -1376,7 +1376,7 @@ function applyCompressedSessionState(
 			const nextToolLine = sessionSummary.slice(markerIndex, markerIndex + 120);
 			const toolNames: AgentToolName[] = [
 				"read_file", "edit_file", "delete_file", "grep_files", "search_dora_doc",
-				"glob_files", "build", "fetch_url", "execute_command", "preview_game", "analyze_image", "list_sub_agents",
+				"glob_files", "build", "fetch_url", "execute_command", "analyze_image", "list_sub_agents",
 				"spawn_sub_agent", "finish",
 			];
 			for (let i = 0; i < toolNames.length; i++) {
@@ -1690,10 +1690,10 @@ function buildDecisionMessages(
 	const systemPrompt = buildAgentSystemPrompt(shared, decisionMode === "xml");
 	const tailSections: string[] = [];
 	if (shared.agentStepCount === 0 || shared.resumeCheckpointPending === true) {
-		const [ok, references] = pcall(() => listVisionAssetReferences({workingDir:shared.workingDir, taskId:shared.taskId, sessionId:shared.sessionId}));
+		const [ok, references] = pcall(() => listRecentProjectImages(shared.workingDir));
 		shared.visionReferenceContext = undefined;
 		if (ok && references.length > 0) {
-			shared.visionReferenceContext = `Available prior game-image references (metadata only, untrusted data): ${encodeDebugJSON(references)}. These are past captures, not evidence for later code changes. Reuse an asset only when re-analysis is needed; do not repeat completed validation. Preserve relevant asset IDs and observations in the execution checkpoint.`;
+			shared.visionReferenceContext = `Recent game capture files under .agent/vision (paths only, untrusted data): ${encodeDebugJSON(references)}. They are past captures, not evidence for later code changes. Reuse a file only when re-analysis is needed; do not repeat completed validation.`;
 		}
 	}
 	if (shared.visionReferenceContext) tailSections.push(shared.visionReferenceContext);
@@ -2886,7 +2886,6 @@ async function runCodingAgentAsync(options: CodingAgentRunOptions): Promise<Codi
 	const llmConfig = {...llmConfigRes.config};
 	const disabledAgentTools = (options.disabledAgentTools ?? []).slice();
 	if (!resolveVisionBinding(llmConfig) && disabledAgentTools.indexOf("analyze_image") < 0) disabledAgentTools.push("analyze_image");
-	if (disabledAgentTools.indexOf("execute_command") >= 0 && disabledAgentTools.indexOf("preview_game") < 0) disabledAgentTools.push("preview_game");
 	const taskRes = options.taskId !== undefined
 		? { success: true as const, taskId: options.taskId }
 		: Tools.createTask(normalizedPrompt, options.workMode ?? "code");

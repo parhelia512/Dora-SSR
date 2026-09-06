@@ -1504,8 +1504,23 @@ export interface AgentVisionAsset {
 	entry: string;
 }
 
+export interface AgentVisionImageResult {
+	success: boolean;
+	asset?: AgentVisionAsset;
+	path?: string;
+	format?: string;
+	width?: number;
+	height?: number;
+	dataUrl?: string;
+	message?: string;
+}
+
+export function getAgentVisionImageByPath(sessionId: number, path: string) {
+	return post<AgentVisionImageResult>("/agent/vision/asset", {sessionId, path});
+}
+
 export function getAgentVisionImage(sessionId: number, assetId: string) {
-	return post<{success: boolean; asset?: AgentVisionAsset; dataUrl?: string; message?: string}>(
+	return post<AgentVisionImageResult>(
 		"/agent/vision/asset", {sessionId, assetId});
 }
 
