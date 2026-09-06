@@ -228,6 +228,17 @@ function summarizeToolParams(step: AgentSessionStep, t: (key: string, options?: 
 			if (pendingMessages !== undefined) push(t("agent.paramLabels.messages"), String(pendingMessages));
 			return items;
 		}
+		case "preview_game": {
+			const entry = typeof params.entry === "string" && params.entry !== "" && params.entry !== "init.lua"
+				? params.entry
+				: "";
+			const times = Array.isArray(params.captureAtSeconds)
+				? (params.captureAtSeconds as unknown[]).filter(item => typeof item === "number").map(item => `${item}s`).join(", ")
+				: "";
+			push(t("agent.paramLabels.entry"), entry);
+			push(t("agent.paramLabels.captureTimes"), times);
+			return items;
+		}
 		default:
 			return items;
 	}
@@ -529,6 +540,11 @@ function AgentStepListBody(props: AgentStepListProps) {
 				const primaryContent = step.reason || (hasReasoning ? step.reasoningContent : "");
 				const handoffMeta = getSubAgentHandoffMeta(step);
 				const visiblePrimaryContent = step.tool === "sub_agent_handoff" ? "" : primaryContent;
+				// A completed visual answer replaces the agent's reasoning text.
+				const hasVisionAnswer = (step.tool === "analyze_image" || step.tool === "preview_game")
+					&& typeof step.result?.report === "string"
+					&& (step.result.report as string).trim() !== "";
+				const suppressedPrimaryContent = visiblePrimaryContent !== "" && hasVisionAnswer ? "" : visiblePrimaryContent;
 				const listedSubAgents = getListedSubAgents(step);
 				const historyEntryPreview = step.tool === "compress_memory" && typeof step.result?.historyEntryPreview === "string"
 					? step.result.historyEntryPreview
@@ -553,7 +569,6 @@ function AgentStepListBody(props: AgentStepListProps) {
 						overflowWrap: "anywhere",
 						wordBreak: "break-word",
 					}}>
-						<AgentVisionEvidence step={step} />
 						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
 							<Typography variant="caption" sx={{ color: Color.TextSecondary }}>
 								{step.step}
@@ -576,7 +591,7 @@ function AgentStepListBody(props: AgentStepListProps) {
 								{questionnaireSummary.title}
 							</Typography>
 						) : null}
-						{visiblePrimaryContent !== "" ? (
+						{suppressedPrimaryContent !== "" ? (
 							<Box
 								sx={{
 									mt: 1,
@@ -594,7 +609,7 @@ function AgentStepListBody(props: AgentStepListProps) {
 									'& .markdown-body > :last-child': { marginBottom: 0 },
 								}}
 							>
-								<Markdown content={visiblePrimaryContent} contentPadding={0} inheritTypography />
+								<Markdown content={suppressedPrimaryContent} contentPadding={0} inheritTypography />
 							</Box>
 						) : null}
 						{historyEntryPreview !== "" ? (
@@ -723,25 +738,54 @@ function AgentStepListBody(props: AgentStepListProps) {
 								})}
 							</Stack>
 						) : null}
-						{paramItems.length > 0 ? (
-							<Typography variant="caption" sx={{
-								color: Color.TextSecondary,
-								display: "block",
-								maxWidth: "100%",
-								mt: step.reason ? 0.75 : 1,
-								lineHeight: 1.6,
-								whiteSpace: "normal",
-								overflowWrap: "anywhere",
-								wordBreak: "break-word",
-							}}>
-							{paramItems.map((item, index) => (
-								<React.Fragment key={`${item.label}:${item.value ?? ""}:${index}`}>
-									{index > 0 ? (item.newLine ? <br /> : " · ") : null}
-										{item.value !== undefined ? `${item.label}: ${item.value}` : item.label}
-									</React.Fragment>
-								))}
-							</Typography>
-						) : null}
+						{step.tool === "preview_game" ? (
+							// Capture times read first; captures stay collapsed behind a button.
+							<>
+								{paramItems.length > 0 ? (
+									<Typography variant="caption" sx={{
+										color: Color.TextSecondary,
+										display: "block",
+										maxWidth: "100%",
+										mt: step.reason ? 0.75 : 1,
+										lineHeight: 1.6,
+										whiteSpace: "normal",
+										overflowWrap: "anywhere",
+										wordBreak: "break-word",
+									}}>
+									{paramItems.map((item, index) => (
+										<React.Fragment key={`${item.label}:${item.value ?? ""}:${index}`}>
+											{index > 0 ? (item.newLine ? <br /> : " · ") : null}
+												{item.value !== undefined ? `${item.label}: ${item.value}` : item.label}
+											</React.Fragment>
+										))}
+									</Typography>
+								) : null}
+								<AgentVisionEvidence step={step} />
+							</>
+						) : (
+							<>
+								<AgentVisionEvidence step={step} />
+								{paramItems.length > 0 ? (
+									<Typography variant="caption" sx={{
+										color: Color.TextSecondary,
+										display: "block",
+										maxWidth: "100%",
+										mt: step.reason ? 0.75 : 1,
+										lineHeight: 1.6,
+										whiteSpace: "normal",
+										overflowWrap: "anywhere",
+										wordBreak: "break-word",
+									}}>
+									{paramItems.map((item, index) => (
+										<React.Fragment key={`${item.label}:${item.value ?? ""}:${index}`}>
+											{index > 0 ? (item.newLine ? <br /> : " · ") : null}
+												{item.value !== undefined ? `${item.label}: ${item.value}` : item.label}
+											</React.Fragment>
+										))}
+									</Typography>
+								) : null}
+							</>
+						)}
 						{toolFailureMessage !== "" ? (
 							<Typography variant="body2" sx={{ color: "rgb(255,170,170)", whiteSpace: "pre-wrap", lineHeight: 1.6, mt: 0.75 }}>
 								{toolFailureMessage}
