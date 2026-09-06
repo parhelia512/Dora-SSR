@@ -23,6 +23,29 @@ export interface CommandPreviewGameResult {
 
 export const COMMAND_VISION_DIR = ".agent/vision";
 
+/** Captures kept per project; oldest files roll out first. */
+export const COMMAND_VISION_MAX_FILES = 60;
+
+/**
+ * Keep only the newest COMMAND_VISION_MAX_FILES capture files. Only files
+ * named like <timestamp>-<random>.png (this feature's own output) are ever
+ * removed; user-placed images in the same directory are untouched. Delete
+ * failures are ignored: pruning must never break a capture.
+ */
+export function pruneVisionCaptures(dir: string, keep = COMMAND_VISION_MAX_FILES): void {
+	if (!Content.exist(dir)) return;
+	const names: string[] = [];
+	for (const file of Content.getFiles(dir)) {
+		if (string.match(file, "^%d+%-%d+%.png$")[0] !== undefined) names.push(file);
+	}
+	if (names.length <= keep) return;
+	// Capture IDs start with os.time(), so name order is creation order.
+	names.sort((a, b) => a < b ? 1 : a > b ? -1 : 0);
+	for (let i = keep; i < names.length; i++) {
+		Content.remove(Path(dir, names[i]));
+	}
+}
+
 /**
  * The previewGame function injected into execute_command's Lua sandbox.
  * It owns the game exclusively, captures 1-3 frames at the requested
@@ -136,6 +159,7 @@ export function createPreviewGameInjection(req: {
 				files.push(relative);
 				frames.push({path: relative, width, height, elapsedSeconds: capturedAt - started});
 			}
+			pruneVisionCaptures(visionDir);
 			const cleanupError = releaseEntryLease(req.operationId, entry);
 			leased = false;
 			if (cleanupError) error(cleanupError);
