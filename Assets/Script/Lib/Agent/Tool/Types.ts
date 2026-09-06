@@ -1,4 +1,5 @@
 // @preview-file off clear
+import type { VisionBinding } from 'Agent/Tool/VisionBinding';
 import type { AgentCompletionReport, StopToken } from 'Agent/Utils';
 import type { JsonSchema, JsonSchemaObject } from 'Agent/JsonSchema';
 
@@ -16,6 +17,8 @@ export type AgentToolName =
 	| "build"
 	| "fetch_url"
 	| "execute_command"
+	| "preview_game"
+	| "analyze_image"
 	| "list_sub_agents"
 	| "spawn_sub_agent"
 	| "ask_user"
@@ -179,6 +182,7 @@ export interface AgentToolWorkflowState {
 }
 
 export interface AgentToolExecutionContext {
+	visionBinding?: VisionBinding;
 	sessionId?: number;
 	taskId: number;
 	step: number;

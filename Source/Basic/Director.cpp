@@ -25,6 +25,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "Input/Keyboard.h"
 #include "Input/TouchDispather.h"
 #include "Node/Node.h"
+#include "Node/Sprite.h"
+#include "Render/RenderTarget.h"
 #include "Node/Node3D.h"
 #include "Node/View3D.h"
 #include "Render/Camera.h"
@@ -372,8 +374,72 @@ void Director::doLogic() {
 	SharedImGui.end();
 }
 
+bool Director::beginGameCapture() {
+	if (_gameCaptureScope || _gameCaptureBusy) return false;
+	_gameCaptureScope = true;
+	_captureSystemRoot = getSystemUI();
+	_captureToolUI.clear();
+	if (_systemUI) {
+		ARRAY_START(Node, child, _systemUI->getChildren())
+			_captureToolUI.emplace_back(child);
+		ARRAY_END
+	}
+	return true;
+}
+
+void Director::endGameCapture() {
+	if (_gameCaptureScope && _systemUI && _captureSystemRoot == _systemUI) {
+		RefVector<Node> owned;
+		ARRAY_START(Node, child, _systemUI->getChildren())
+			if (std::none_of(_captureToolUI.begin(), _captureToolUI.end(),
+				[child](const WRef<Node>& item) { return item == child; })) owned.push_back(child);
+		ARRAY_END
+		for (Node* child : owned) child->removeFromParent(true);
+	}
+	_gameCaptureScope = false;
+	_captureSystemRoot = nullptr;
+	_captureToolUI.clear();
+	if (_captureCallback) {
+		auto callback = std::move(_captureCallback);
+		_captureCallback = nullptr;
+		_gameCaptureBusy = false;
+		callback(false, 0, Size{0, 0});
+	}
+}
+
+bool Director::captureGameAsync(String filename, const std::function<void(bool, double, Size)>& callback) {
+	if (!_gameCaptureScope || _gameCaptureBusy || !callback || filename.empty()) return false;
+	_gameCaptureBusy = true;
+	_captureFile = filename.toString();
+	_captureCallback = callback;
+	return true;
+}
+
 void Director::doRender() {
 	if (_paused || _stoped) return;
+
+	// Capture only the requested frame. All ordinary scene passes keep their
+	// original projections and traversal order; nested game render targets remain independent.
+	Ref<RenderTarget> capture;
+	Size sourceSize{0, 0};
+	if (_captureCallback) {
+		sourceSize = SharedApplication.getBufferSize();
+		const auto size = sourceSize;
+		const float scale = std::min(1.0f, 1280.0f / std::max(size.width, size.height));
+		capture = RenderTarget::create(std::max(1, int(size.width * scale)),
+			std::max(1, int(size.height * scale)));
+		if (!capture) {
+			auto callback = std::move(_captureCallback);
+			_captureCallback = nullptr;
+			_gameCaptureBusy = false;
+			callback(false, 0, Size{0, 0});
+		}
+	}
+	auto bindCapture = [&](bgfx::ViewId id) { if (capture) capture->bind(id); };
+	auto isToolUI = [&](Node* node) {
+		return std::any_of(_captureToolUI.begin(), _captureToolUI.end(),
+			[node](const WRef<Node>& item) { return item == node; });
+	};
 
 	/* push default view projection */
 	const auto& defaultViewProj = getCurrentViewProjection();
@@ -401,6 +467,7 @@ void Director::doRender() {
 			/* render RT, post node and ui node */
 			SharedView.pushBack("Main"_slice, [&]() {
 				bgfx::ViewId viewId = SharedView.getId();
+				bindCapture(viewId);
 				/* RT */
 				if (_root) {
 					bgfx::setViewClear(viewId, BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL);
@@ -450,6 +517,7 @@ void Director::doRender() {
 			/* render scene tree and post node */
 			SharedView.pushBack("Main"_slice, [&]() {
 				bgfx::ViewId viewId = SharedView.getId();
+				bindCapture(viewId);
 				bgfx::setViewClear(viewId,
 					BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
 					_clearColor.toRGBA());
@@ -464,6 +532,7 @@ void Director::doRender() {
 			if (_ui3D) {
 				SharedView.pushBack("UI3D"_slice, [&]() {
 					bgfx::ViewId viewId = SharedView.getId();
+					bindCapture(viewId);
 					pushViewProjection(_ui3DCamera->getView(), [&]() {
 						bgfx::setViewTransform(viewId, nullptr, getViewProjection().m);
 						_ui3D->visit();
@@ -475,6 +544,7 @@ void Director::doRender() {
 			if (_ui) {
 				SharedView.pushBack("UI"_slice, [&]() {
 					bgfx::ViewId viewId = SharedView.getId();
+					bindCapture(viewId);
 					/* ui node */
 					if (_ui) {
 						pushViewProjection(_uiCamera->getView(), [&]() {
@@ -491,8 +561,61 @@ void Director::doRender() {
 		if (_nvgContext && _nvgDirty) {
 			_nvgDirty = false;
 			SharedView.pushBack("NanoVG"_slice, [&]() {
+				bindCapture(SharedView.getId());
 				nvgSetViewId(_nvgContext, SharedView.getId());
 				nvgEndFrame(_nvgContext);
+			});
+		}
+
+		// Preview-created HUD nodes belong to the game, not the persistent tools.
+		if (_gameCaptureScope && _systemUI && _systemUI->isVisible() && _systemUI->isChildrenVisible()) {
+			SharedView.pushBack("GameSystemUI-NanoVG"_slice, [&]() {
+				const auto nvgViewId = SharedView.getId();
+				bindCapture(nvgViewId);
+				SharedView.pushBack("GameSystemUI"_slice, [&]() {
+					const auto id = SharedView.getId();
+					bindCapture(id);
+					pushViewProjection(_systemUICamera->getView(), [&]() {
+						bgfx::setViewTransform(id, nullptr, getViewProjection().m);
+						_systemUI->eachChild([&](Node* child) {
+							if (!isToolUI(child)) child->visit();
+							return false;
+						});
+						SharedRendererManager.flush();
+					});
+				});
+				if (_nvgContext && _nvgDirty) {
+					_nvgDirty = false;
+					nvgSetViewId(_nvgContext, nvgViewId);
+					nvgEndFrame(_nvgContext);
+				}
+			});
+		}
+		if (capture) {
+			const bool flipY = bgfx::getCaps()->originBottomLeft;
+			SharedView.pushBack("GameCapturePresent"_slice, [&]() {
+				const auto size = SharedView.getSize();
+				Matrix ortho;
+				bx::mtxOrtho(ortho.m, 0, size.width, 0, size.height, -1000, 1000, 0,
+					bgfx::getCaps()->homogeneousDepth);
+				pushViewProjection(ortho, [&]() {
+					bgfx::setViewTransform(SharedView.getId(), nullptr, ortho.m);
+					auto sprite = Sprite::create(capture->getTexture());
+					sprite->setAsManaged();
+					sprite->setPosition({size.width / 2, size.height / 2});
+					sprite->setScaleX(size.width / capture->getWidth());
+					sprite->setScaleY((flipY ? -1 : 1) * size.height / capture->getHeight());
+					sprite->setBlendFunc({BlendFunc::One, BlendFunc::Zero});
+					sprite->visit();
+					SharedRendererManager.flush();
+				});
+			});
+			auto callback = std::move(_captureCallback);
+			_captureCallback = nullptr;
+			const double capturedAt = SharedApplication.getRunningTime();
+			capture->saveAsync(_captureFile, flipY, [this, capture, callback, capturedAt, sourceSize](bool success) {
+				_gameCaptureBusy = false;
+				callback(success, capturedAt, sourceSize);
 			});
 		}
 
@@ -510,7 +633,25 @@ void Director::doRender() {
 					bgfx::ViewId viewId = SharedView.getId();
 					pushViewProjection(_systemUICamera->getView(), [&]() {
 						bgfx::setViewTransform(viewId, nullptr, getViewProjection().m);
-						_systemUI->visit();
+						if (_gameCaptureScope) {
+							if (_systemUI->isVisible()) {
+								bool renderedSelf = false;
+								auto renderSelf = [&]() {
+									if (!renderedSelf && _systemUI->isSelfVisible()) _systemUI->render();
+									renderedSelf = true;
+								};
+								if (_systemUI->isChildrenVisible()) {
+									_systemUI->eachChild([&](Node* child) {
+										if (child->getOrder() >= 0) renderSelf();
+										if (isToolUI(child)) child->visit();
+										return false;
+									});
+								}
+								renderSelf();
+							}
+						} else {
+							_systemUI->visit();
+						}
 						SharedRendererManager.flush();
 					});
 				});
@@ -1089,5 +1230,49 @@ DORA_TEST_ENTRY(SystemUICpp) {
 
 	systemUI->removeChild(marker, true);
 	return true;
+}
+
+DORA_TEST_ENTRY(GameCaptureChildrenVisibleCpp) {
+	Ref<Node> root{SharedDirector.getSystemUI()};
+	Ref<Node> tool{Node::create()};
+	root->addChild(tool);
+	if (!SharedDirector.beginGameCapture()) {
+		tool->removeFromParent();
+		return false;
+	}
+	Ref<Node> game{Node::create()};
+	root->addChild(game);
+	struct Counts { int game = 0; int tool = 0; };
+	auto counts = std::make_shared<Counts>();
+	game->onRender([counts](double) { ++counts->game; return false; });
+	tool->onRender([counts](double) { ++counts->tool; return false; });
+	const bool visible = root->isVisible();
+	const bool childrenVisible = root->isChildrenVisible();
+	root->setVisible(true);
+	root->setChildrenVisible(false);
+	const std::string base = SharedContent.getWritablePath() + "/game-capture-children-visible";
+	auto finish = [root, tool, game, visible, childrenVisible, base](bool success) {
+		SharedDirector.endGameCapture();
+		success = success && game->getParent() == nullptr && tool->getParent() == root;
+		tool->removeFromParent();
+		root->setVisible(visible);
+		root->setChildrenVisible(childrenVisible);
+		SharedContent.save(base + ".json", success
+			? "{\"success\":true,\"hiddenChildrenNotRendered\":true,\"restoredChildrenRendered\":true,\"gameCleanedToolPreserved\":true}"
+			: "{\"success\":false}");
+	};
+	bool accepted = SharedDirector.captureGameAsync(base + "-hidden.png",
+		[root, counts, base, finish](bool saved, double, Size) {
+			const bool hidden = saved && counts->game == 0 && counts->tool == 0;
+			root->setChildrenVisible(true);
+			bool next = SharedDirector.captureGameAsync(base + "-restored.png",
+				[counts, hidden, finish](bool restored, double, Size) {
+					finish(hidden && restored && counts->game > 0 && counts->tool > 0);
+				});
+			if (!next) finish(false);
+		});
+	if (!accepted) finish(false);
+	// This is an asynchronous render test; inspect the JSON after both readbacks.
+	return accepted;
 }
 #endif // DORA_TEST

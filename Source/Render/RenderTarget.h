@@ -54,6 +54,9 @@ public:
 	ReadPixelsResult readPixelsSync(std::vector<uint8_t>& pixels);
 	ReadPixelsResult readPixelsSync(std::vector<uint8_t>& pixels, uint16_t layer, uint8_t mip);
 	void saveAsync(String filename, const std::function<void(bool)>& callback);
+	void saveAsync(String filename, bool flipY, const std::function<void(bool)>& callback);
+	// Bind an existing view without changing its camera or creating another pass.
+	void bind(bgfx::ViewId viewId);
 	static RenderTarget* getCurrent();
 	CREATE_FUNC_NULLABLE(RenderTarget);
 

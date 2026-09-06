@@ -1496,6 +1496,19 @@ export interface AgentSessionStep {
 	updatedAt: number;
 };
 
+export interface AgentVisionAsset {
+	assetId: string;
+	width: number;
+	height: number;
+	elapsedSeconds: number;
+	entry: string;
+}
+
+export function getAgentVisionImage(sessionId: number, assetId: string) {
+	return post<{success: boolean; asset?: AgentVisionAsset; dataUrl?: string; message?: string}>(
+		"/agent/vision/asset", {sessionId, assetId});
+}
+
 export interface AgentChangeSetFileItem {
 	path: string;
 	op: "write" | "create" | "delete";

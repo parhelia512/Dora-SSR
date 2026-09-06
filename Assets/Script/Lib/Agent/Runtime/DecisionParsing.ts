@@ -170,6 +170,14 @@ export function parseXMLToolCallObjectFromText(text: string): { success: true; o
 	if (!params.success) {
 		return { success: false, message: params.message };
 	}
+	// XML child contents are raw text. Decode the vision tools' explicitly
+	// array-valued fields before semantic validation; never coerce scalars.
+	const arrayField = rawObj.tool === "analyze_image" ? "assetIds"
+		: rawObj.tool === "preview_game" ? "captureAtSeconds" : undefined;
+	if (arrayField !== undefined && typeof params.obj[arrayField] === "string") {
+		const [decoded] = AgentUtils.safeJsonDecode(params.obj[arrayField] as string);
+		if (Array.isArray(decoded)) params.obj[arrayField] = decoded;
+	}
 	return {
 		success: true,
 		obj: {
@@ -214,6 +222,25 @@ export type DecisionPlainTextCompletion = {
 };
 export type DecisionResult = DecisionSuccess | DecisionBatchSuccess | DecisionLoopContinue | DecisionPlainTextCompletion | DecisionFailure;
 export type DecisionFailure = { success: false; message: string; raw?: string };
+
+/** A main-agent finish envelope is a final answer, never a request for new work. */
+export function parseMainXMLCompletion(role: AgentRole, raw: string): DecisionPlainTextCompletion | undefined {
+	if (role !== "main") return undefined;
+	const first = raw.indexOf("<tool_call");
+	if (first < 0 || raw.indexOf("<tool_call", first + 1) >= 0) return undefined;
+	const parsed = parseXMLToolCallObjectFromText(raw);
+	if (!parsed.success || parsed.obj.tool !== "finish" || !isRecord(parsed.obj.params)) return undefined;
+	const message = (parsed.obj.params as Record<string, unknown>).message;
+	if (typeof message !== "string" || message.trim() === "") return undefined;
+	return {success: true, kind: "plain_text_completion", content: message.trim()};
+}
+
+export function preservesXMLRepairTool(original: string, candidate: string): boolean {
+	const source = parseXMLToolCallObjectFromText(original);
+	if (!source.success || typeof source.obj.tool !== "string") return true;
+	const repaired = parseXMLToolCallObjectFromText(candidate);
+	return repaired.success && repaired.obj.tool === source.obj.tool;
+}
 
 export function isDecisionBatchSuccess(result: DecisionSuccess | DecisionBatchSuccess): result is DecisionBatchSuccess {
 	return (result as DecisionBatchSuccess).kind === "batch";

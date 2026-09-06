@@ -62,6 +62,11 @@ public:
 	void cleanup();
 	void clearSystemUI();
 
+	// A preview owns the system-UI children created after this boundary.
+	bool beginGameCapture();
+	void endGameCapture();
+	bool captureGameAsync(String filename, const std::function<void(bool, double, Size)>& callback);
+
 	template <typename Func>
 	void pushViewProjection(const Matrix& viewProj, const Func& workHere) {
 		pushViewProjection(viewProj);
@@ -153,6 +158,12 @@ public:
 	};
 
 private:
+	bool _gameCaptureScope = false;
+	bool _gameCaptureBusy = false;
+	std::vector<WRef<Node>> _captureToolUI;
+	WRef<Node> _captureSystemRoot;
+	std::string _captureFile;
+	std::function<void(bool, double, Size)> _captureCallback;
 	bool _nvgDirty;
 	bool _paused;
 	bool _stoped;

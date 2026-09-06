@@ -354,6 +354,10 @@ class Director
 	void clearCamera();
 	void cleanup();
 	void clearSystemUI();
+	bool beginGameCapture();
+	void endGameCapture();
+	// handler(success, capturedAt, sourceSize): sourceSize is the original frame buffer size.
+	bool captureGameAsync(String filename, tolua_function_void handler);
 	static tolua_outside Director* Director_shared @ create();
 };
 

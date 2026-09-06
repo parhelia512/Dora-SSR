@@ -279,7 +279,7 @@ getFileEntries = (path, recursive = true, excludeFiles = nil) ->
 	table.sort entries, (a, b) -> a.entryName < b.entryName
 	entries
 
-local allEntries = {dirty: {}, hasDirty: false}
+local allEntries = {dirty: {}, hasDirty: false, runId: 0}
 
 allEntries.scanDir = (path, dir, noPreview = false) ->
 	entries = []
@@ -829,11 +829,12 @@ export stop = ->
 
 export getCurrentEntryStatus = ->
 	entry = currentEntry
-	return success: true, running: false unless entry and not isInEntry
+	return success: true, running: false, runId: allEntries.runId unless entry and not isInEntry
 	status =
 		success: true
 		running: true
 		kind: entry.runKind or "file"
+		runId: allEntries.runId
 		entryName: entry.entryName
 		fileName: entry.fileName
 	status.workDir = entry.workDir if entry.workDir
@@ -900,6 +901,7 @@ export downloadFile = (url, target) -> Director.systemScheduler\schedule once ->
 	}
 
 export enterEntryAsync = (entry) ->
+	allEntries.runId += 1
 	isInEntry = false
 	App.idled = false
 	emit Profiler.EventName, "ClearLoader"

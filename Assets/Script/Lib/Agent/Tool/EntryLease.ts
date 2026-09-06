@@ -1,0 +1,40 @@
+// @preview-file off clear
+export interface EntryStatus {
+	success: boolean;
+	running: boolean;
+	runId?: number;
+	kind?: string;
+	fileName?: string;
+	workDir?: string;
+	projectRoot?: string;
+	entryName?: string;
+}
+export interface DevEntryModule {
+	allClear(this: void): void;
+	stop(this: void): boolean;
+	getCurrentEntryStatus(this: void): EntryStatus;
+	enterEntryAsync(this: void, entry: {entryName: string; fileName: string; workDir: string; projectRoot: string; runKind: "agent_test"}): LuaMultiReturn<[boolean, string | undefined]>;
+}
+let owner = "";
+let runId: number | undefined;
+export function acquireEntryLease(id: string, entry: DevEntryModule): void {
+	if (owner !== "" && owner !== id) error("Dora entry runtime is busy with another Agent tool");
+	const status = entry.getCurrentEntryStatus();
+	if (status.running && (owner !== id || status.runId !== runId)) error("Dora entry runtime is in use; stop the current game before previewing");
+	owner = id;
+}
+export function recordEntryLeaseRun(id: string, entry: DevEntryModule): void {
+	if (owner === id) runId = (entry.getCurrentEntryStatus().runId ?? 0) + 1;
+}
+export function ownsEntryLease(id: string, entry: DevEntryModule): boolean {
+	const status = entry.getCurrentEntryStatus();
+	return owner === id && status.running && runId !== undefined && status.runId === runId;
+}
+export function releaseEntryLease(id: string, entry: DevEntryModule): string | undefined {
+	if (owner !== id) return undefined;
+	let cleanupError: string | undefined;
+	try { if (ownsEntryLease(id, entry) && !entry.stop()) error("entry refused to stop"); }
+	catch (e) { cleanupError = `failed to stop Agent preview: ${tostring(e)}`; }
+	owner = ""; runId = undefined;
+	return cleanupError;
+}

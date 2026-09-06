@@ -411,6 +411,7 @@ Analyze the actions and update the memory. Follow these guidelines:
 	- Process Actions to Process in chronological order. The newest concrete tool result overrides older Session Summary claims and earlier plans
 	- Never report a file as missing when a later successful edit/create result shows it exists, and never report validation as not run when a later build or command result records it
 	- Copy the latest concrete failure or validation result exactly enough to resume from it; do not replace evidence with a speculative diagnosis
+	- Preserve relevant game-image asset IDs, entry/run identity, visual model observations, and whether a later source edit invalidated the capture. A successful preview is not visual validation; still images do not prove input or gameplay behavior
 	- When the task has multiple independently validated items, preserve a compact per-item ledger in the Session Summary: item identity, the player/action path exercised, PASS/FAIL/PARTIAL, and the concrete command/build evidence. Do not collapse completed items into a generic statement such as "hooks exist" or "tests passed"
 	- Treat a ledger item with PASS evidence as closed unless a later source edit or failure explicitly invalidates it. After resuming from compression, continue at the first open item; never rediscover, rebuild, or re-run closed items merely because their detailed history was compacted
 	- End the Session Summary with an \`Active Checkpoint\` section whenever work is unfinished

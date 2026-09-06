@@ -740,6 +740,10 @@ HttpServer\post "/agent/session/get", (req): invalidArguments ->
 	switch req when {body: {:sessionId}}
 		return AgentSession.getSession sessionId
 
+HttpServer\post "/agent/vision/asset", (req): invalidArguments ->
+	switch req when {body: {:sessionId, :assetId}}
+		return (require "Agent.Tool.VisionAssets").getSessionVisionImage sessionId, assetId
+
 HttpServer\post "/agent/session/mode", (req): invalidArguments ->
 	switch req when {body: {:sessionId, :workMode}}
 		return AgentSession.setWorkMode sessionId, workMode

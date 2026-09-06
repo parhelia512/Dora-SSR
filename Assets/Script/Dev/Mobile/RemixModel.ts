@@ -50,6 +50,8 @@ export const buildQuestionnaireAnswers = (
 });
 
 export const compactAgentActivity = (tool: string, reason: string, zh: boolean, active = true) => {
+	if (tool === "preview_game") return zh ? (active ? "正在拍摄游戏画面" : "游戏取景") : (active ? "Capturing game" : "Game capture");
+	if (tool === "analyze_image") return zh ? (active ? "正在检查游戏画面" : "画面检查") : (active ? "Inspecting game" : "Visual inspection");
 	const label = tool === "search_files" || tool === "search_dora_doc"
 		? (zh ? (active ? "正在查找资料" : "查找资料") : (active ? "Searching" : "Search"))
 		: tool === "read_file"

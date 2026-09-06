@@ -15,35 +15,11 @@ import {
 	inspectReadableFile,
 } from 'Agent/Tool/Workspace';
 
-interface AgentEntryDescriptor {
-	entryName?: string;
-	fileName?: string;
-}
-
-interface AgentEntryStatus extends AgentEntryDescriptor {
-	success: boolean;
-	running: boolean;
-	workDir?: string;
-	projectRoot?: string;
-	runKind?: string;
-}
-
-interface DevEntryModule {
-	allClear(this: void): void;
-	stop(this: void): boolean;
-	getCurrentEntryStatus(this: void): AgentEntryStatus;
-	enterEntryAsync(this: void, entry: {
-		entryName: string;
-		fileName: string;
-		workDir: string;
-		projectRoot: string;
-		runKind: "agent_test";
-	}): LuaMultiReturn<[boolean, string | undefined]>;
-}
-
+import { acquireEntryLease, recordEntryLeaseRun, ownsEntryLease, releaseEntryLease, type DevEntryModule } from 'Agent/Tool/EntryLease';
+interface AgentEntryDescriptor { entryName?: string; fileName?: string; }
 
 const LUA_COMMAND_DEFAULT_TIMEOUT_SECONDS = 30;
-let agentEntryRuntimeOwner = "";
+
 
 function executeLuaCommand(req: {
 	workDir: string;
@@ -65,25 +41,13 @@ function executeLuaCommand(req: {
 	let entryObjectBaseline = 0;
 	let entryLuaRefBaseline = 0;
 	const acquireEntryRuntime = () => {
-		if (agentEntryRuntimeOwner !== "" && agentEntryRuntimeOwner !== req.operationId) {
-			error("Dora entry runtime is busy with another Agent command");
-		}
-		agentEntryRuntimeOwner = req.operationId;
+		acquireEntryLease(req.operationId, entry);
 		ownsEntryRuntime = true;
 	};
 	const stopOwnedEntry = (): string | undefined => {
 		if (!ownsEntryRuntime) return undefined;
-		let cleanupError: string | undefined;
-		try {
-			entry.stop();
-		} catch (e) {
-			cleanupError = `failed to stop Agent test entry: ${tostring(e)}`;
-		}
 		ownsEntryRuntime = false;
-		if (agentEntryRuntimeOwner === req.operationId) {
-			agentEntryRuntimeOwner = "";
-		}
-		return cleanupError;
+		return releaseEntryLease(req.operationId, entry);
 	};
 	const startEntryWatchdog = () => {
 		entryObjectBaseline = Dora.Object.count;
@@ -228,6 +192,7 @@ function executeLuaCommand(req: {
 			acquireEntryRuntime();
 			entry.allClear();
 			startEntryWatchdog();
+			recordEntryLeaseRun(req.operationId, entry);
 			const [success, message] = entry.enterEntryAsync({
 				entryName: normalized.entryName,
 				fileName: normalized.fileName,
@@ -238,7 +203,7 @@ function executeLuaCommand(req: {
 			return $multi(success, message);
 		},
 		stopEntry: () => {
-			if (!ownsEntryRuntime) return false;
+			if (!ownsEntryRuntime || !ownsEntryLease(req.operationId, entry)) return false;
 			return entry.stop();
 		},
 		reportProgress: (value: unknown, callbackValue?: unknown) => {

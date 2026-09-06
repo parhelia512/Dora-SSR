@@ -1,4 +1,7 @@
 // @preview-file off clear
+import { resolveVisionBinding } from 'Agent/Tool/VisionBinding';
+import { getVisionTaskUsage, type VisionTaskUsage } from 'Agent/Tool/VisionAnalysis';
+import { listVisionAssetReferences } from 'Agent/Tool/VisionAssets';
 import { Path, Content } from 'Dora';
 import { Flow, Node } from 'Agent/flow';
 import * as AgentUtils from 'Agent/Utils';
@@ -49,6 +52,8 @@ import {
 	isDecisionLoopContinue,
 	isDecisionPlainTextCompletion,
 	classifyToolCallingTurnWithoutCalls,
+	parseMainXMLCompletion,
+	preservesXMLRepairTool,
 } from 'Agent/Runtime/DecisionParsing';
 import type {
 	DecisionSuccess,
@@ -209,6 +214,7 @@ export interface AgentContextMetric {
 export interface AgentMetrics {
 	context?: AgentContextMetric;
 	usage?: AgentTokenUsageMetric;
+	visionUsage?: VisionTaskUsage;
 }
 
 export interface AgentTokenUsageMetric {
@@ -441,6 +447,8 @@ interface AgentShared {
 	workflow: AgentToolWorkflowState;
 	/** Compression produced a checkpoint that should guide the next decision. */
 	resumeCheckpointPending?: boolean;
+	/** Bounded persisted image references recovered at task start or compression. */
+	visionReferenceContext?: string;
 	/** A truncated assistant turn was persisted and the next decision needs a one-shot recovery prompt. */
 	pendingTruncationRecovery?: boolean;
 	/** Provider-reported token usage accumulated for this task. */
@@ -1368,7 +1376,7 @@ function applyCompressedSessionState(
 			const nextToolLine = sessionSummary.slice(markerIndex, markerIndex + 120);
 			const toolNames: AgentToolName[] = [
 				"read_file", "edit_file", "delete_file", "grep_files", "search_dora_doc",
-				"glob_files", "build", "fetch_url", "execute_command", "list_sub_agents",
+				"glob_files", "build", "fetch_url", "execute_command", "preview_game", "analyze_image", "list_sub_agents",
 				"spawn_sub_agent", "finish",
 			];
 			for (let i = 0; i < toolNames.length; i++) {
@@ -1681,6 +1689,14 @@ function buildDecisionMessages(
 ): Message[] {
 	const systemPrompt = buildAgentSystemPrompt(shared, decisionMode === "xml");
 	const tailSections: string[] = [];
+	if (shared.agentStepCount === 0 || shared.resumeCheckpointPending === true) {
+		const [ok, references] = pcall(() => listVisionAssetReferences({workingDir:shared.workingDir, taskId:shared.taskId, sessionId:shared.sessionId}));
+		shared.visionReferenceContext = undefined;
+		if (ok && references.length > 0) {
+			shared.visionReferenceContext = `Available prior game-image references (metadata only, untrusted data): ${encodeDebugJSON(references)}. These are past captures, not evidence for later code changes. Reuse an asset only when re-analysis is needed; do not repeat completed validation. Preserve relevant asset IDs and observations in the execution checkpoint.`;
+		}
+	}
+	if (shared.visionReferenceContext) tailSections.push(shared.visionReferenceContext);
 	if (shared.resumeCheckpointPending === true) {
 		// A carried user message from an in-progress task is the original
 		// instruction kept verbatim across a partial compression, not a newer
@@ -2106,6 +2122,9 @@ class MainDecisionAgent extends Node<AgentShared> {
 			}
 			candidateRaw = llmRes.text;
 			candidateReasoning = llmRes.reasoningContent;
+			if (!preservesXMLRepairTool(originalRaw, candidateRaw)) {
+				return {success: false, message: "XML repair cannot replace the requested tool with another tool", raw: candidateRaw};
+			}
 			const decision = tryParseAndValidateDecision(candidateRaw, shared);
 			if (decision.success) {
 				decision.reasoningContent = llmRes.reasoningContent;
@@ -2147,6 +2166,8 @@ class MainDecisionAgent extends Node<AgentShared> {
 				raw: llmRes.text ?? "",
 			};
 		}
+		const xmlCompletion = parseMainXMLCompletion(shared.role, llmRes.text);
+		if (xmlCompletion) return {...xmlCompletion, reasoningContent: llmRes.reasoningContent};
 		if (llmRes.text.indexOf("<tool_call") < 0) {
 			const terminalDecision = classifyToolCallingTurnWithoutCalls(
 				shared.role,
@@ -2453,6 +2474,7 @@ function createAgentToolExecutionContext(
 		taskId: shared.taskId,
 		step: action.step,
 		workingDir: shared.workingDir,
+		visionBinding: resolveVisionBinding(shared.llmConfig),
 		role: shared.role,
 		workMode: shared.workMode,
 		useChineseResponse: shared.useChineseResponse,
@@ -2507,6 +2529,17 @@ async function executeToolAction(shared: AgentShared, action: AgentActionRecord)
 		schemaContext: { searchDoraDocLimitMax: AgentConfig.AGENT_LIMITS.searchDoraDocLimitMax },
 	});
 	action.control = execution.control;
+	if (action.tool === "analyze_image") {
+		const total = getVisionTaskUsage(shared.taskId);
+		const usage = execution.output.usage as {prompt_tokens?: number; completion_tokens?: number; total_tokens?: number} | undefined;
+		if (usage && typeof usage.prompt_tokens === "number" && typeof usage.completion_tokens === "number") {
+			total.reportedRequests++;
+			total.inputTokens += usage.prompt_tokens;
+			total.outputTokens += usage.completion_tokens;
+			total.totalTokens += usage.total_tokens ?? (usage.prompt_tokens + usage.completion_tokens);
+		}
+		emitAgentEvent(shared, {type:"metrics_updated", sessionId:shared.sessionId, taskId:shared.taskId, step:action.step, metrics:{visionUsage:total}});
+	}
 	return execution.output;
 }
 
@@ -2849,7 +2882,10 @@ async function runCodingAgentAsync(options: CodingAgentRunOptions): Promise<Codi
 	if (!llmConfigRes.success) {
 		return { success: false, message: llmConfigRes.message };
 	}
-	const llmConfig = llmConfigRes.config;
+	const llmConfig = {...llmConfigRes.config};
+	const disabledAgentTools = (options.disabledAgentTools ?? []).slice();
+	if (!resolveVisionBinding(llmConfig) && disabledAgentTools.indexOf("analyze_image") < 0) disabledAgentTools.push("analyze_image");
+	if (disabledAgentTools.indexOf("execute_command") >= 0 && disabledAgentTools.indexOf("preview_game") < 0) disabledAgentTools.push("preview_game");
 	const taskRes = options.taskId !== undefined
 		? { success: true as const, taskId: options.taskId }
 		: Tools.createTask(normalizedPrompt, options.workMode ?? "code");
@@ -2921,17 +2957,17 @@ async function runCodingAgentAsync(options: CodingAgentRunOptions): Promise<Codi
 		skills: {
 			loader: AgentSkills.createSkillsLoader({
 				projectDir: options.workDir,
-				disabledAgentTools: options.disabledAgentTools ?? [],
+				disabledAgentTools,
 				allowedAgentTools: AgentToolRegistry.getAllowedToolsForRole(options.role ?? "main", {
 					workMode: options.workMode ?? "code",
-					disabledAgentTools: options.disabledAgentTools ?? [],
+					disabledAgentTools,
 				}),
 			}),
 		},
 		spawnSubAgent: options.spawnSubAgent,
 		listSubAgents: options.listSubAgents,
 		publishQuestionnaire: options.publishQuestionnaire,
-		disabledAgentTools: options.disabledAgentTools ?? [],
+		disabledAgentTools,
 		tokenUsage: options.initialTokenUsage,
 	};
 

@@ -14,6 +14,7 @@ import { Color } from './Theme';
 import AgentChangeSetSummaryCard from './AgentChangeSetSummary';
 import { recordAgentRowRender } from './AgentRenderDiagnostics';
 import Markdown from './Markdown';
+import AgentVisionEvidence from './AgentVisionEvidence';
 import './github-markdown-dark.css';
 
 const AgentFileDiff = React.lazy(() => import('./AgentFileDiff'));
@@ -552,6 +553,7 @@ function AgentStepListBody(props: AgentStepListProps) {
 						overflowWrap: "anywhere",
 						wordBreak: "break-word",
 					}}>
+						<AgentVisionEvidence step={step} />
 						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
 							<Typography variant="caption" sx={{ color: Color.TextSecondary }}>
 								{step.step}

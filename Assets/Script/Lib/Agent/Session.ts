@@ -3,6 +3,8 @@ import { App, Content, DB, Path, HttpServer, emit } from 'Dora';
 import type { SQL } from 'Dora';
 import { runCodingAgent, CodingAgentEvent, CodingAgentRunResult, truncateAgentUserPrompt } from 'Agent/DoraAgent';
 import type { AgentCompletionReport, AgentTokenUsageMetric } from 'Agent/DoraAgent';
+import type { VisionTaskUsage } from 'Agent/Tool/VisionAnalysis';
+import { removeVisionSessionAssets, renameVisionSessionAssets } from 'Agent/Tool/VisionAssets';
 import * as AgentToolRegistry from 'Agent/Tool/Registry';
 import * as AgentRuntimePolicy from 'Agent/Runtime/Policy';
 import * as Tools from 'Agent/Tools';
@@ -179,6 +181,7 @@ export interface AgentContextMetricItem {
 export interface AgentMetricsItem {
 	context?: AgentContextMetricItem;
 	usage?: AgentTokenUsageMetricItem;
+	visionUsage?: VisionTaskUsage;
 }
 
 export interface AgentTokenUsageMetricItem {
@@ -903,6 +906,7 @@ function deleteSessionRecords(sessionId: number, preserveArtifacts = false) {
 	DB.exec(`DELETE FROM ${TABLE_SESSION} WHERE id = ?`, [sessionId]);
 	if (session && session.kind === "main") {
 		removePendingQuestionnaire(session);
+		if (!preserveArtifacts) removeVisionSessionAssets(session.rootSessionId > 0 ? session.rootSessionId : session.id);
 	}
 	if (!preserveArtifacts && session && session.kind === "sub" && session.memoryScope !== "") {
 		if (Content.remove(Path(session.projectRoot, ".agent", session.memoryScope))) {
@@ -1419,6 +1423,7 @@ function clearSessionTokenUsage(sessionId: number): AgentMetricsItem | undefined
 	if (!session) return undefined;
 	const metrics = { ...(session.metrics ?? {}) };
 	delete metrics.usage;
+	delete metrics.visionUsage;
 	DB.exec(
 		`UPDATE ${TABLE_SESSION}
 		SET metrics_json = ?, updated_at = ?
@@ -2263,13 +2268,17 @@ export function renameSessionsByProjectRoot(oldRoot: string, newRoot: string) {
 	if (!oldRoot || !newRoot || !Content.isAbsolutePath(oldRoot) || !Content.isAbsolutePath(newRoot)) {
 		return { success: false as const, message: "invalid projectRoot" };
 	}
-	const rows = queryRows(`SELECT id, project_root FROM ${TABLE_SESSION}`) ?? [];
+	const rows = queryRows(`SELECT id, project_root, root_session_id FROM ${TABLE_SESSION}`) ?? [];
 	let renamed = 0;
 	for (const row of rows) {
 		const sessionId = typeof row[0] === "number" ? row[0] as number : 0;
 		const projectRoot = toStr(row[1]);
 		const nextProjectRoot = rebaseProjectRoot(projectRoot, oldRoot, newRoot);
 		if (sessionId > 0 && nextProjectRoot) {
+			const rootSessionId = typeof row[2] === "number" && row[2] > 0 ? row[2] : sessionId;
+			if (!renameVisionSessionAssets(rootSessionId as number, projectRoot, nextProjectRoot)) {
+				return { success: false as const, message: "failed to move vision evidence metadata", renamed };
+			}
 			DB.exec(
 				`UPDATE ${TABLE_SESSION} SET project_root = ?, title = ?, updated_at = ? WHERE id = ?`,
 				[nextProjectRoot, Path.getFilename(nextProjectRoot), now(), sessionId],

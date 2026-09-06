@@ -1,4 +1,6 @@
 // @preview-file off clear
+import { previewGame } from 'Agent/Tool/Preview';
+import { analyzeImage } from 'Agent/Tool/VisionAnalysis';
 import * as AgentConfig from 'Agent/Config';
 import { normalizeQuestionnaire } from 'Agent/Questionnaire';
 import * as AgentRuntimePolicy from 'Agent/Runtime/Policy';
@@ -588,6 +590,8 @@ export const AGENT_TOOL_HANDLERS: Partial<Record<AgentToolName, AgentToolHandler
 	build,
 	fetch_url: fetchUrl,
 	execute_command: executeCommand,
+	preview_game: async (context, input) => ({output: await previewGame({...context, entry:input.entry as string | undefined, captureAtSeconds:input.captureAtSeconds as number[] | undefined, isCancelled:()=>context.cancellation.isCancelled()})}),
+	analyze_image: async (context, input) => ({output: await analyzeImage({...context, binding:context.visionBinding, assetIds:input.assetIds as string[], question:input.question as string, criteria:input.criteria as string | undefined, isCancelled:()=>context.cancellation.isCancelled()})}),
 	edit_file: editFile,
 	delete_file: deleteFile,
 	ask_user: askUser,

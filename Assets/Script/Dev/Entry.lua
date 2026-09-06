@@ -463,7 +463,8 @@ getFileEntries = function(path, recursive, excludeFiles) -- 264
 end -- 264
 local allEntries = { -- 282
 	dirty = { }, -- 282
-	hasDirty = false -- 282
+	hasDirty = false, -- 282
+	runId = 0 -- 282
 } -- 282
 allEntries.scanDir = function(path, dir, noPreview) -- 284
 	if noPreview == nil then -- 284
@@ -1470,262 +1471,265 @@ getCurrentEntryStatus = function() -- 830
 	if not (entry and not isInEntry) then -- 832
 		return { -- 832
 			success = true, -- 832
-			running = false -- 832
+			running = false, -- 832
+			runId = allEntries.runId -- 832
 		} -- 832
 	end -- 832
 	local status = { -- 834
 		success = true, -- 834
 		running = true, -- 835
 		kind = entry.runKind or "file", -- 836
-		entryName = entry.entryName, -- 837
-		fileName = entry.fileName -- 838
+		runId = allEntries.runId, -- 837
+		entryName = entry.entryName, -- 838
+		fileName = entry.fileName -- 839
 	} -- 833
-	if entry.workDir then -- 839
-		status.workDir = entry.workDir -- 839
-	end -- 839
-	if entry.projectRoot then -- 840
-		status.projectRoot = entry.projectRoot -- 840
+	if entry.workDir then -- 840
+		status.workDir = entry.workDir -- 840
 	end -- 840
-	return status -- 841
+	if entry.projectRoot then -- 841
+		status.projectRoot = entry.projectRoot -- 841
+	end -- 841
+	return status -- 842
 end -- 830
 _module_0["getCurrentEntryStatus"] = getCurrentEntryStatus -- 830
-local _anon_func_2 = function(_with_0) -- 860
-	local _val_0 = App.platform -- 860
-	return "Linux" == _val_0 or "Windows" == _val_0 or "macOS" == _val_0 -- 860
-end -- 860
-setupEventHandlers = function() -- 843
-	local _with_0 = Director.postNode -- 844
-	_with_0:onAppEvent(function(eventType) -- 845
-		if "Quit" == eventType then -- 846
-			quit = true -- 847
-			allClear() -- 848
-			return clearTempFiles() -- 849
-		elseif "Shutdown" == eventType then -- 850
-			return stop() -- 851
-		end -- 845
-	end) -- 845
-	_with_0:onAppChange(function(settingName) -- 852
-		if "Theme" == settingName then -- 853
-			config.themeColor = App.themeColor:toARGB() -- 854
-		elseif "Locale" == settingName then -- 855
-			config.locale = App.locale -- 856
-			updateLocale() -- 857
-			return teal.clear(true) -- 858
-		elseif "FullScreen" == settingName or "Size" == settingName or "Position" == settingName then -- 859
-			if _anon_func_2(_with_0) then -- 860
-				if "FullScreen" == settingName then -- 862
-					config.fullScreen = App.fullScreen -- 862
-				elseif "Position" == settingName then -- 863
-					local _obj_0 = App.winPosition -- 863
-					config.winX, config.winY = _obj_0.x, _obj_0.y -- 863
-				elseif "Size" == settingName then -- 864
-					local width, height -- 865
-					do -- 865
-						local _obj_0 = App.winSize -- 865
-						width, height = _obj_0.width, _obj_0.height -- 865
-					end -- 865
-					config.winWidth = width -- 866
-					config.winHeight = height -- 867
-				end -- 861
-			end -- 860
-		end -- 852
-	end) -- 852
-	_with_0:onAppWS(function(event) -- 868
-		if event.type == "Close" then -- 869
-			if HttpServer.wsConnectionCount == 0 then -- 870
-				updateEntries() -- 871
-			end -- 870
-			return -- 872
-		end -- 869
-		if not (event.type == "Receive") then -- 873
+local _anon_func_2 = function(_with_0) -- 861
+	local _val_0 = App.platform -- 861
+	return "Linux" == _val_0 or "Windows" == _val_0 or "macOS" == _val_0 -- 861
+end -- 861
+setupEventHandlers = function() -- 844
+	local _with_0 = Director.postNode -- 845
+	_with_0:onAppEvent(function(eventType) -- 846
+		if "Quit" == eventType then -- 847
+			quit = true -- 848
+			allClear() -- 849
+			return clearTempFiles() -- 850
+		elseif "Shutdown" == eventType then -- 851
+			return stop() -- 852
+		end -- 846
+	end) -- 846
+	_with_0:onAppChange(function(settingName) -- 853
+		if "Theme" == settingName then -- 854
+			config.themeColor = App.themeColor:toARGB() -- 855
+		elseif "Locale" == settingName then -- 856
+			config.locale = App.locale -- 857
+			updateLocale() -- 858
+			return teal.clear(true) -- 859
+		elseif "FullScreen" == settingName or "Size" == settingName or "Position" == settingName then -- 860
+			if _anon_func_2(_with_0) then -- 861
+				if "FullScreen" == settingName then -- 863
+					config.fullScreen = App.fullScreen -- 863
+				elseif "Position" == settingName then -- 864
+					local _obj_0 = App.winPosition -- 864
+					config.winX, config.winY = _obj_0.x, _obj_0.y -- 864
+				elseif "Size" == settingName then -- 865
+					local width, height -- 866
+					do -- 866
+						local _obj_0 = App.winSize -- 866
+						width, height = _obj_0.width, _obj_0.height -- 866
+					end -- 866
+					config.winWidth = width -- 867
+					config.winHeight = height -- 868
+				end -- 862
+			end -- 861
+		end -- 853
+	end) -- 853
+	_with_0:onAppWS(function(event) -- 869
+		if event.type == "Close" then -- 870
+			if HttpServer.wsConnectionCount == 0 then -- 871
+				updateEntries() -- 872
+			end -- 871
 			return -- 873
-		end -- 873
-		local data = json.decode(event.msg) -- 874
-		if not data then -- 875
-			return -- 875
-		end -- 875
-		local _exp_0 = data.name -- 876
-		if "SearchFiles" == _exp_0 then -- 877
-			return handleSearchFiles(data) -- 878
-		elseif "SearchFilesStop" == _exp_0 then -- 879
-			if data.id == nil or data.id == activeSearchId then -- 880
-				activeSearchId = 0 -- 881
-			end -- 880
+		end -- 870
+		if not (event.type == "Receive") then -- 874
+			return -- 874
+		end -- 874
+		local data = json.decode(event.msg) -- 875
+		if not data then -- 876
+			return -- 876
 		end -- 876
-	end) -- 868
-	_with_0:slot("UpdateEntries", function() -- 882
-		return updateEntries() -- 882
-	end) -- 882
-	return _with_0 -- 844
-end -- 843
-setupEventHandlers() -- 884
-clearTempFiles() -- 885
-local downloadFile -- 887
-downloadFile = function(url, target) -- 887
-	return Director.systemScheduler:schedule(once(function() -- 887
-		local success = HttpClient:downloadAsync(url, target, 30, function(current, total) -- 888
-			if quit then -- 889
-				return true -- 889
-			end -- 889
-			emit("AppWS", "Send", json.encode({ -- 891
-				name = "Download", -- 891
-				url = url, -- 891
-				status = "downloading", -- 891
-				progress = current / total -- 892
-			})) -- 890
-			return false -- 888
-		end) -- 888
-		return emit("AppWS", "Send", json.encode(success and { -- 895
-			name = "Download", -- 895
-			url = url, -- 895
-			status = "completed", -- 895
-			progress = 1.0 -- 896
-		} or { -- 898
-			name = "Download", -- 898
-			url = url, -- 898
-			status = "failed", -- 898
-			progress = 0.0 -- 899
-		})) -- 894
-	end)) -- 887
-end -- 887
-_module_0["downloadFile"] = downloadFile -- 887
-local _anon_func_3 = function(file, require, workDir) -- 910
-	if workDir == nil then -- 910
-		workDir = Path:getPath(file) -- 910
-	end -- 910
-	Content:insertSearchPath(1, workDir) -- 911
-	local scriptPath = Path(workDir, "Script") -- 912
-	if Content:exist(scriptPath) then -- 913
-		Content:insertSearchPath(1, scriptPath) -- 914
-	end -- 913
-	local result = require(file) -- 915
-	if "function" == type(result) then -- 916
-		result() -- 916
-	end -- 916
-	return nil -- 917
-end -- 910
-local _anon_func_4 = function(_with_0, err, fontSize, width) -- 946
-	local label = Label("sarasa-mono-sc-regular", fontSize) -- 946
-	label.alignment = "Left" -- 947
-	label.textWidth = width - fontSize -- 948
-	label.text = err -- 949
-	return label -- 946
-end -- 946
-local enterEntryAsync -- 902
-enterEntryAsync = function(entry) -- 902
-	isInEntry = false -- 903
-	App.idled = false -- 904
-	emit(Profiler.EventName, "ClearLoader") -- 905
-	currentEntry = entry -- 906
-	local file, workDir = entry.fileName, entry.workDir -- 907
-	sleep() -- 908
-	return xpcall(_anon_func_3, function(msg) -- 917
-		local err = debug.traceback(msg) -- 919
-		Log("Error", err) -- 920
-		allClear() -- 921
-		local ScrollArea = require("UI.Control.Basic.ScrollArea") -- 922
-		local viewWidth, viewHeight -- 923
-		do -- 923
-			local _obj_0 = View.size -- 923
-			viewWidth, viewHeight = _obj_0.width, _obj_0.height -- 923
-		end -- 923
-		local width, height = viewWidth - 20, viewHeight - 20 -- 924
-		local fontSize = math.floor(20 * App.devicePixelRatio) -- 925
-		Director.ui:addChild((function() -- 926
-			local root = AlignNode() -- 926
-			do -- 927
-				local _obj_0 = App.bufferSize -- 927
-				width, height = _obj_0.width, _obj_0.height -- 927
-			end -- 927
-			root:css("width: " .. tostring(width) .. "; height: " .. tostring(height)) -- 928
-			root:onAppChange(function(settingName) -- 929
-				if settingName == "Size" then -- 929
-					do -- 930
-						local _obj_0 = App.bufferSize -- 930
-						width, height = _obj_0.width, _obj_0.height -- 930
-					end -- 930
-					return root:css("width: " .. tostring(width) .. "; height: " .. tostring(height)) -- 931
-				end -- 929
-			end) -- 929
-			root:addChild((function() -- 932
-				local _with_0 = ScrollArea({ -- 933
-					width = width, -- 933
-					height = height, -- 934
-					paddingX = 0, -- 935
-					paddingY = 50, -- 936
-					viewWidth = height, -- 937
-					viewHeight = height -- 938
-				}) -- 932
-				root:onAlignLayout(function(w, h) -- 940
-					_with_0.position = Vec2(w / 2, h / 2) -- 941
-					w = w - 20 -- 942
-					h = h - 20 -- 943
-					_with_0.view.children.first.textWidth = w - fontSize -- 944
-					return _with_0:adjustSizeWithAlign("Auto", 10, Size(w, h)) -- 945
-				end) -- 940
-				_with_0.view:addChild(_anon_func_4(_with_0, err, fontSize, width)) -- 946
-				return _with_0 -- 932
-			end)()) -- 932
-			return root -- 926
-		end)()) -- 926
-		return err -- 950
-	end, file, require, workDir) -- 909
-end -- 902
-_module_0["enterEntryAsync"] = enterEntryAsync -- 902
-local enterDemoEntry -- 952
-enterDemoEntry = function(entry) -- 952
-	return thread(function() -- 952
-		return enterEntryAsync(entry) -- 952
-	end) -- 952
-end -- 952
-local reloadCurrentEntry -- 954
-reloadCurrentEntry = function() -- 954
-	if currentEntry then -- 955
-		allClear() -- 956
-		return enterDemoEntry(currentEntry) -- 957
-	end -- 955
+		local _exp_0 = data.name -- 877
+		if "SearchFiles" == _exp_0 then -- 878
+			return handleSearchFiles(data) -- 879
+		elseif "SearchFilesStop" == _exp_0 then -- 880
+			if data.id == nil or data.id == activeSearchId then -- 881
+				activeSearchId = 0 -- 882
+			end -- 881
+		end -- 877
+	end) -- 869
+	_with_0:slot("UpdateEntries", function() -- 883
+		return updateEntries() -- 883
+	end) -- 883
+	return _with_0 -- 845
+end -- 844
+setupEventHandlers() -- 885
+clearTempFiles() -- 886
+local downloadFile -- 888
+downloadFile = function(url, target) -- 888
+	return Director.systemScheduler:schedule(once(function() -- 888
+		local success = HttpClient:downloadAsync(url, target, 30, function(current, total) -- 889
+			if quit then -- 890
+				return true -- 890
+			end -- 890
+			emit("AppWS", "Send", json.encode({ -- 892
+				name = "Download", -- 892
+				url = url, -- 892
+				status = "downloading", -- 892
+				progress = current / total -- 893
+			})) -- 891
+			return false -- 889
+		end) -- 889
+		return emit("AppWS", "Send", json.encode(success and { -- 896
+			name = "Download", -- 896
+			url = url, -- 896
+			status = "completed", -- 896
+			progress = 1.0 -- 897
+		} or { -- 899
+			name = "Download", -- 899
+			url = url, -- 899
+			status = "failed", -- 899
+			progress = 0.0 -- 900
+		})) -- 895
+	end)) -- 888
+end -- 888
+_module_0["downloadFile"] = downloadFile -- 888
+local _anon_func_3 = function(file, require, workDir) -- 912
+	if workDir == nil then -- 912
+		workDir = Path:getPath(file) -- 912
+	end -- 912
+	Content:insertSearchPath(1, workDir) -- 913
+	local scriptPath = Path(workDir, "Script") -- 914
+	if Content:exist(scriptPath) then -- 915
+		Content:insertSearchPath(1, scriptPath) -- 916
+	end -- 915
+	local result = require(file) -- 917
+	if "function" == type(result) then -- 918
+		result() -- 918
+	end -- 918
+	return nil -- 919
+end -- 912
+local _anon_func_4 = function(_with_0, err, fontSize, width) -- 948
+	local label = Label("sarasa-mono-sc-regular", fontSize) -- 948
+	label.alignment = "Left" -- 949
+	label.textWidth = width - fontSize -- 950
+	label.text = err -- 951
+	return label -- 948
+end -- 948
+local enterEntryAsync -- 903
+enterEntryAsync = function(entry) -- 903
+	allEntries.runId = allEntries.runId + 1 -- 904
+	isInEntry = false -- 905
+	App.idled = false -- 906
+	emit(Profiler.EventName, "ClearLoader") -- 907
+	currentEntry = entry -- 908
+	local file, workDir = entry.fileName, entry.workDir -- 909
+	sleep() -- 910
+	return xpcall(_anon_func_3, function(msg) -- 919
+		local err = debug.traceback(msg) -- 921
+		Log("Error", err) -- 922
+		allClear() -- 923
+		local ScrollArea = require("UI.Control.Basic.ScrollArea") -- 924
+		local viewWidth, viewHeight -- 925
+		do -- 925
+			local _obj_0 = View.size -- 925
+			viewWidth, viewHeight = _obj_0.width, _obj_0.height -- 925
+		end -- 925
+		local width, height = viewWidth - 20, viewHeight - 20 -- 926
+		local fontSize = math.floor(20 * App.devicePixelRatio) -- 927
+		Director.ui:addChild((function() -- 928
+			local root = AlignNode() -- 928
+			do -- 929
+				local _obj_0 = App.bufferSize -- 929
+				width, height = _obj_0.width, _obj_0.height -- 929
+			end -- 929
+			root:css("width: " .. tostring(width) .. "; height: " .. tostring(height)) -- 930
+			root:onAppChange(function(settingName) -- 931
+				if settingName == "Size" then -- 931
+					do -- 932
+						local _obj_0 = App.bufferSize -- 932
+						width, height = _obj_0.width, _obj_0.height -- 932
+					end -- 932
+					return root:css("width: " .. tostring(width) .. "; height: " .. tostring(height)) -- 933
+				end -- 931
+			end) -- 931
+			root:addChild((function() -- 934
+				local _with_0 = ScrollArea({ -- 935
+					width = width, -- 935
+					height = height, -- 936
+					paddingX = 0, -- 937
+					paddingY = 50, -- 938
+					viewWidth = height, -- 939
+					viewHeight = height -- 940
+				}) -- 934
+				root:onAlignLayout(function(w, h) -- 942
+					_with_0.position = Vec2(w / 2, h / 2) -- 943
+					w = w - 20 -- 944
+					h = h - 20 -- 945
+					_with_0.view.children.first.textWidth = w - fontSize -- 946
+					return _with_0:adjustSizeWithAlign("Auto", 10, Size(w, h)) -- 947
+				end) -- 942
+				_with_0.view:addChild(_anon_func_4(_with_0, err, fontSize, width)) -- 948
+				return _with_0 -- 934
+			end)()) -- 934
+			return root -- 928
+		end)()) -- 928
+		return err -- 952
+	end, file, require, workDir) -- 911
+end -- 903
+_module_0["enterEntryAsync"] = enterEntryAsync -- 903
+local enterDemoEntry -- 954
+enterDemoEntry = function(entry) -- 954
+	return thread(function() -- 954
+		return enterEntryAsync(entry) -- 954
+	end) -- 954
 end -- 954
-Director.clearColor = Color(0xff1a1a1a) -- 959
-local descColor = Color(0xffa1a1a1) -- 960
-local extraOperations -- 962
-do -- 962
-	local isOSSLicenseExist = Content:exist("LICENSES") -- 963
-	local ossLicenses = nil -- 964
-	local ossLicenseOpen = false -- 965
-	local failedSetFolder = false -- 966
-	local statusFlags = { -- 967
-		"NoResize", -- 967
-		"NoMove", -- 967
-		"NoCollapse", -- 967
-		"AlwaysAutoResize", -- 967
-		"NoSavedSettings" -- 967
-	} -- 967
-	extraOperations = function() -- 974
-		local zh = useChinese -- 975
-		if isDesktop then -- 976
-			local alwaysOnTop = config.alwaysOnTop -- 977
-			do -- 978
-				local changed -- 978
-				changed, alwaysOnTop = Checkbox(zh and "窗口置顶" or "Always On Top", alwaysOnTop) -- 978
-				if changed then -- 978
-					App.alwaysOnTop = alwaysOnTop -- 979
-					config.alwaysOnTop = alwaysOnTop -- 980
-				end -- 978
-			end -- 978
-			local virtualGamepadEnabled = Controller.virtualGamepadEnabled -- 981
-			do -- 982
-				local changed -- 982
-				changed, virtualGamepadEnabled = Checkbox(zh and "键盘模拟手柄" or "Keyboard as Gamepad", virtualGamepadEnabled) -- 982
-				if changed then -- 982
-					Controller.virtualGamepadEnabled = virtualGamepadEnabled -- 983
-					config.virtualGamepadEnabled = virtualGamepadEnabled -- 984
-				end -- 982
-			end -- 982
-			SameLine() -- 985
-			TextColored(descColor, "(?)") -- 986
-			if IsItemHovered() then -- 987
-				BeginTooltip(function() -- 988
-					return PushTextWrapPos(360, function() -- 989
+local reloadCurrentEntry -- 956
+reloadCurrentEntry = function() -- 956
+	if currentEntry then -- 957
+		allClear() -- 958
+		return enterDemoEntry(currentEntry) -- 959
+	end -- 957
+end -- 956
+Director.clearColor = Color(0xff1a1a1a) -- 961
+local descColor = Color(0xffa1a1a1) -- 962
+local extraOperations -- 964
+do -- 964
+	local isOSSLicenseExist = Content:exist("LICENSES") -- 965
+	local ossLicenses = nil -- 966
+	local ossLicenseOpen = false -- 967
+	local failedSetFolder = false -- 968
+	local statusFlags = { -- 969
+		"NoResize", -- 969
+		"NoMove", -- 969
+		"NoCollapse", -- 969
+		"AlwaysAutoResize", -- 969
+		"NoSavedSettings" -- 969
+	} -- 969
+	extraOperations = function() -- 976
+		local zh = useChinese -- 977
+		if isDesktop then -- 978
+			local alwaysOnTop = config.alwaysOnTop -- 979
+			do -- 980
+				local changed -- 980
+				changed, alwaysOnTop = Checkbox(zh and "窗口置顶" or "Always On Top", alwaysOnTop) -- 980
+				if changed then -- 980
+					App.alwaysOnTop = alwaysOnTop -- 981
+					config.alwaysOnTop = alwaysOnTop -- 982
+				end -- 980
+			end -- 980
+			local virtualGamepadEnabled = Controller.virtualGamepadEnabled -- 983
+			do -- 984
+				local changed -- 984
+				changed, virtualGamepadEnabled = Checkbox(zh and "键盘模拟手柄" or "Keyboard as Gamepad", virtualGamepadEnabled) -- 984
+				if changed then -- 984
+					Controller.virtualGamepadEnabled = virtualGamepadEnabled -- 985
+					config.virtualGamepadEnabled = virtualGamepadEnabled -- 986
+				end -- 984
+			end -- 984
+			SameLine() -- 987
+			TextColored(descColor, "(?)") -- 988
+			if IsItemHovered() then -- 989
+				BeginTooltip(function() -- 990
+					return PushTextWrapPos(360, function() -- 991
 						return Text(zh and [[键盘映射：
 方向键 / WASD → 十字键
 J / K / U / I → A / B / X / Y
@@ -1740,1315 +1744,1315 @@ Tab / Ctrl → Back
 Q / E → LB / RB
 Enter → Start
 
-When enabled, regular key and text input events are suppressed; mapped keys are delivered only as virtual gamepad input.]]) -- 990
-					end) -- 989
-				end) -- 988
-			end -- 987
-		end -- 976
-		local showPreview, authRequired, webIDETourCompleted = config.showPreview, config.authRequired, config.webIDETourCompleted -- 1005
-		do -- 1010
-			local changed -- 1010
-			changed, showPreview = Checkbox(zh and "显示预览图" or "Show Preview", showPreview) -- 1010
-			if changed then -- 1010
-				config.showPreview = showPreview -- 1011
-				updateEntries() -- 1012
-				if not showPreview then -- 1013
-					thread(function() -- 1014
-						collectgarbage() -- 1015
-						return Cache:removeUnused("Texture") -- 1016
-					end) -- 1014
-				end -- 1013
-			end -- 1010
-		end -- 1010
-		do -- 1017
-			local changed -- 1017
-			changed, authRequired = Checkbox(zh and "访问验证" or "Auth Required", authRequired) -- 1017
-			if changed then -- 1017
-				config.authRequired = authRequired -- 1018
-				HttpServer.authRequired = authRequired -- 1019
-			end -- 1017
-		end -- 1017
-		SameLine() -- 1020
-		TextColored(descColor, "(?)") -- 1021
-		if IsItemHovered() then -- 1022
-			BeginTooltip(function() -- 1023
-				return PushTextWrapPos(280, function() -- 1024
-					return Text(zh and '请勿在不安全的网络中关闭该选项' or 'Do not turn off this option on an insecure network') -- 1025
-				end) -- 1024
-			end) -- 1023
-		end -- 1022
-		do -- 1026
-			local themeColor = App.themeColor -- 1027
-			local writablePath = config.writablePath -- 1028
-			SeparatorText(zh and "工作目录" or "Workspace") -- 1029
-			PushTextWrapPos(400, function() -- 1030
-				return TextColored(themeColor, writablePath) -- 1031
-			end) -- 1030
-			if not isDesktop then -- 1032
-				goto skipSetting -- 1032
-			end -- 1032
-			local popupName = tostring(zh and '工作目录错误' or 'Invalid Workspace Path') .. "##failedSetFolder" -- 1033
-			if Button(zh and "改变目录" or "Set Folder") then -- 1034
-				App:openFileDialog(true, function(path) -- 1035
-					if path == "" then -- 1036
-						return -- 1036
-					end -- 1036
-					local relPath = Path:getRelative(Content.assetPath, path) -- 1037
-					if "" == relPath or ".." == relPath:sub(1, 2) then -- 1038
-						return setWorkspace(path) -- 1039
-					else -- 1041
-						failedSetFolder = true -- 1041
-					end -- 1038
-				end) -- 1035
+When enabled, regular key and text input events are suppressed; mapped keys are delivered only as virtual gamepad input.]]) -- 992
+					end) -- 991
+				end) -- 990
+			end -- 989
+		end -- 978
+		local showPreview, authRequired, webIDETourCompleted = config.showPreview, config.authRequired, config.webIDETourCompleted -- 1007
+		do -- 1012
+			local changed -- 1012
+			changed, showPreview = Checkbox(zh and "显示预览图" or "Show Preview", showPreview) -- 1012
+			if changed then -- 1012
+				config.showPreview = showPreview -- 1013
+				updateEntries() -- 1014
+				if not showPreview then -- 1015
+					thread(function() -- 1016
+						collectgarbage() -- 1017
+						return Cache:removeUnused("Texture") -- 1018
+					end) -- 1016
+				end -- 1015
+			end -- 1012
+		end -- 1012
+		do -- 1019
+			local changed -- 1019
+			changed, authRequired = Checkbox(zh and "访问验证" or "Auth Required", authRequired) -- 1019
+			if changed then -- 1019
+				config.authRequired = authRequired -- 1020
+				HttpServer.authRequired = authRequired -- 1021
+			end -- 1019
+		end -- 1019
+		SameLine() -- 1022
+		TextColored(descColor, "(?)") -- 1023
+		if IsItemHovered() then -- 1024
+			BeginTooltip(function() -- 1025
+				return PushTextWrapPos(280, function() -- 1026
+					return Text(zh and '请勿在不安全的网络中关闭该选项' or 'Do not turn off this option on an insecure network') -- 1027
+				end) -- 1026
+			end) -- 1025
+		end -- 1024
+		do -- 1028
+			local themeColor = App.themeColor -- 1029
+			local writablePath = config.writablePath -- 1030
+			SeparatorText(zh and "工作目录" or "Workspace") -- 1031
+			PushTextWrapPos(400, function() -- 1032
+				return TextColored(themeColor, writablePath) -- 1033
+			end) -- 1032
+			if not isDesktop then -- 1034
+				goto skipSetting -- 1034
 			end -- 1034
-			if failedSetFolder then -- 1042
-				failedSetFolder = false -- 1043
-				OpenPopup(popupName) -- 1044
-			end -- 1042
-			SetNextWindowPosCenter("Always", Vec2(0.5, 0.5)) -- 1045
-			BeginPopupModal(popupName, statusFlags, function() -- 1046
-				TextWrapped(zh and "工作目录不能包含引擎内置资源目录" or "Built-in assets path should not be under the workspace path") -- 1047
-				if Button(tostring(zh and '确认' or 'Confirm') .. "##closeErrorPopup", Vec2(240, 30)) then -- 1048
-					return CloseCurrentPopup() -- 1049
-				end -- 1048
-			end) -- 1046
-			SameLine() -- 1050
-			if Button(zh and "使用默认" or "Use Default") then -- 1051
-				setWorkspace(Content.appPath) -- 1052
-			end -- 1051
-			Separator() -- 1053
-			::skipSetting:: -- 1054
-		end -- 1026
-		if isOSSLicenseExist then -- 1055
-			if Button(zh and '开源协议' or 'OSS Licenses') then -- 1056
-				if not ossLicenses then -- 1057
-					ossLicenses = { } -- 1058
-					local licenseText = Content:load("LICENSES") -- 1059
-					ossLicenseOpen = (licenseText ~= nil) -- 1060
-					if ossLicenseOpen then -- 1060
-						licenseText = licenseText:gsub("\r\n", "\n") -- 1061
-						for license in GSplit(licenseText, "\n--------\n", true) do -- 1062
-							local name, text = license:match("[%s\n]*([^\n]*)[\n]*(.*)") -- 1063
-							if name then -- 1063
-								ossLicenses[#ossLicenses + 1] = { -- 1064
-									name, -- 1064
-									text -- 1064
-								} -- 1064
-							end -- 1063
-						end -- 1062
-					end -- 1060
-				else -- 1066
-					ossLicenseOpen = true -- 1066
-				end -- 1057
-			end -- 1056
-			if ossLicenseOpen then -- 1067
-				local width, height, themeColor = App.visualSize.width, App.visualSize.height, App.themeColor -- 1068
-				SetNextWindowPosCenter("Appearing", Vec2(0.5, 0.5)) -- 1069
-				SetNextWindowSize(Vec2(math.min(width * 0.8, 750), height * 0.8), "Appearing") -- 1070
-				PushStyleVar("WindowPadding", Vec2(20, 10), function() -- 1071
-					ossLicenseOpen = Begin(zh and '开源协议' or 'OSS Licenses', ossLicenseOpen, { -- 1074
-						"NoSavedSettings" -- 1074
-					}, function() -- 1075
-						for _index_0 = 1, #ossLicenses do -- 1075
-							local _des_0 = ossLicenses[_index_0] -- 1075
-							local firstLine, text = _des_0[1], _des_0[2] -- 1075
-							local name, license = firstLine:match("(.+): (.+)") -- 1076
-							TextColored(themeColor, name) -- 1077
-							SameLine() -- 1078
-							TreeNode(tostring(license) .. "##" .. tostring(name), function() -- 1079
-								return TextWrapped(text) -- 1079
-							end) -- 1079
-						end -- 1075
-					end) -- 1071
-				end) -- 1071
-			end -- 1067
-		end -- 1055
-		if not App.debugging then -- 1081
-			return -- 1081
-		end -- 1081
-		return TreeNode(zh and "开发操作" or "Development", function() -- 1082
-			if Button(zh and "脚本编译测试" or "Script Build Test") then -- 1083
-				OpenPopup("build") -- 1083
-			end -- 1083
-			PushStyleVar("WindowPadding", Vec2(10, 10), function() -- 1084
-				return BeginPopup("build", function() -- 1084
-					if Selectable(zh and "编译" or "Compile") then -- 1085
-						doCompile(false) -- 1085
-					end -- 1085
-					Separator() -- 1086
-					if Selectable(zh and "压缩" or "Minify") then -- 1087
-						doCompile(true) -- 1087
+			local popupName = tostring(zh and '工作目录错误' or 'Invalid Workspace Path') .. "##failedSetFolder" -- 1035
+			if Button(zh and "改变目录" or "Set Folder") then -- 1036
+				App:openFileDialog(true, function(path) -- 1037
+					if path == "" then -- 1038
+						return -- 1038
+					end -- 1038
+					local relPath = Path:getRelative(Content.assetPath, path) -- 1039
+					if "" == relPath or ".." == relPath:sub(1, 2) then -- 1040
+						return setWorkspace(path) -- 1041
+					else -- 1043
+						failedSetFolder = true -- 1043
+					end -- 1040
+				end) -- 1037
+			end -- 1036
+			if failedSetFolder then -- 1044
+				failedSetFolder = false -- 1045
+				OpenPopup(popupName) -- 1046
+			end -- 1044
+			SetNextWindowPosCenter("Always", Vec2(0.5, 0.5)) -- 1047
+			BeginPopupModal(popupName, statusFlags, function() -- 1048
+				TextWrapped(zh and "工作目录不能包含引擎内置资源目录" or "Built-in assets path should not be under the workspace path") -- 1049
+				if Button(tostring(zh and '确认' or 'Confirm') .. "##closeErrorPopup", Vec2(240, 30)) then -- 1050
+					return CloseCurrentPopup() -- 1051
+				end -- 1050
+			end) -- 1048
+			SameLine() -- 1052
+			if Button(zh and "使用默认" or "Use Default") then -- 1053
+				setWorkspace(Content.appPath) -- 1054
+			end -- 1053
+			Separator() -- 1055
+			::skipSetting:: -- 1056
+		end -- 1028
+		if isOSSLicenseExist then -- 1057
+			if Button(zh and '开源协议' or 'OSS Licenses') then -- 1058
+				if not ossLicenses then -- 1059
+					ossLicenses = { } -- 1060
+					local licenseText = Content:load("LICENSES") -- 1061
+					ossLicenseOpen = (licenseText ~= nil) -- 1062
+					if ossLicenseOpen then -- 1062
+						licenseText = licenseText:gsub("\r\n", "\n") -- 1063
+						for license in GSplit(licenseText, "\n--------\n", true) do -- 1064
+							local name, text = license:match("[%s\n]*([^\n]*)[\n]*(.*)") -- 1065
+							if name then -- 1065
+								ossLicenses[#ossLicenses + 1] = { -- 1066
+									name, -- 1066
+									text -- 1066
+								} -- 1066
+							end -- 1065
+						end -- 1064
+					end -- 1062
+				else -- 1068
+					ossLicenseOpen = true -- 1068
+				end -- 1059
+			end -- 1058
+			if ossLicenseOpen then -- 1069
+				local width, height, themeColor = App.visualSize.width, App.visualSize.height, App.themeColor -- 1070
+				SetNextWindowPosCenter("Appearing", Vec2(0.5, 0.5)) -- 1071
+				SetNextWindowSize(Vec2(math.min(width * 0.8, 750), height * 0.8), "Appearing") -- 1072
+				PushStyleVar("WindowPadding", Vec2(20, 10), function() -- 1073
+					ossLicenseOpen = Begin(zh and '开源协议' or 'OSS Licenses', ossLicenseOpen, { -- 1076
+						"NoSavedSettings" -- 1076
+					}, function() -- 1077
+						for _index_0 = 1, #ossLicenses do -- 1077
+							local _des_0 = ossLicenses[_index_0] -- 1077
+							local firstLine, text = _des_0[1], _des_0[2] -- 1077
+							local name, license = firstLine:match("(.+): (.+)") -- 1078
+							TextColored(themeColor, name) -- 1079
+							SameLine() -- 1080
+							TreeNode(tostring(license) .. "##" .. tostring(name), function() -- 1081
+								return TextWrapped(text) -- 1081
+							end) -- 1081
+						end -- 1077
+					end) -- 1073
+				end) -- 1073
+			end -- 1069
+		end -- 1057
+		if not App.debugging then -- 1083
+			return -- 1083
+		end -- 1083
+		return TreeNode(zh and "开发操作" or "Development", function() -- 1084
+			if Button(zh and "脚本编译测试" or "Script Build Test") then -- 1085
+				OpenPopup("build") -- 1085
+			end -- 1085
+			PushStyleVar("WindowPadding", Vec2(10, 10), function() -- 1086
+				return BeginPopup("build", function() -- 1086
+					if Selectable(zh and "编译" or "Compile") then -- 1087
+						doCompile(false) -- 1087
 					end -- 1087
 					Separator() -- 1088
-					if Selectable(zh and "清理" or "Clean") then -- 1089
-						return doClean() -- 1089
+					if Selectable(zh and "压缩" or "Minify") then -- 1089
+						doCompile(true) -- 1089
 					end -- 1089
-				end) -- 1084
-			end) -- 1084
-			if isInEntry then -- 1090
-				if waitForWebStart then -- 1091
-					BeginDisabled(function() -- 1092
-						return Button(zh and "重载开发程序(Ctrl+Z)" or "Reload Dev Entry(Ctrl+Z)") -- 1092
-					end) -- 1092
-				elseif Button(zh and "重载开发程序(Ctrl+Z)" or "Reload Dev Entry(Ctrl+Z)") then -- 1093
-					reloadDevEntry() -- 1094
-				end -- 1091
-			end -- 1090
-			do -- 1095
-				local changed -- 1095
-				changed, scaleContent = Checkbox(string.format("%.1fx " .. tostring(zh and '屏幕缩放' or 'Screen'), screenScale), scaleContent) -- 1095
-				if changed then -- 1095
-					View.scale = scaleContent and screenScale or 1 -- 1096
-				end -- 1095
-			end -- 1095
+					Separator() -- 1090
+					if Selectable(zh and "清理" or "Clean") then -- 1091
+						return doClean() -- 1091
+					end -- 1091
+				end) -- 1086
+			end) -- 1086
+			if isInEntry then -- 1092
+				if waitForWebStart then -- 1093
+					BeginDisabled(function() -- 1094
+						return Button(zh and "重载开发程序(Ctrl+Z)" or "Reload Dev Entry(Ctrl+Z)") -- 1094
+					end) -- 1094
+				elseif Button(zh and "重载开发程序(Ctrl+Z)" or "Reload Dev Entry(Ctrl+Z)") then -- 1095
+					reloadDevEntry() -- 1096
+				end -- 1093
+			end -- 1092
 			do -- 1097
 				local changed -- 1097
-				changed, engineDev = Checkbox(zh and '引擎开发模式' or 'Engine Dev Mode', engineDev) -- 1097
+				changed, scaleContent = Checkbox(string.format("%.1fx " .. tostring(zh and '屏幕缩放' or 'Screen'), screenScale), scaleContent) -- 1097
 				if changed then -- 1097
-					config.engineDev = engineDev -- 1098
+					View.scale = scaleContent and screenScale or 1 -- 1098
 				end -- 1097
 			end -- 1097
 			do -- 1099
 				local changed -- 1099
-				changed, webIDETourCompleted = Checkbox(zh and "导览已完成" or "User Tour Done", webIDETourCompleted) -- 1099
+				changed, engineDev = Checkbox(zh and '引擎开发模式' or 'Engine Dev Mode', engineDev) -- 1099
 				if changed then -- 1099
-					config.webIDETourCompleted = webIDETourCompleted -- 1100
+					config.engineDev = engineDev -- 1100
 				end -- 1099
 			end -- 1099
-			if testingThread then -- 1101
-				return BeginDisabled(function() -- 1102
-					return Button(zh and "开始自动测试" or "Test automatically") -- 1102
-				end) -- 1102
-			elseif Button(zh and "开始自动测试" or "Test automatically") then -- 1103
-				testingThread = thread(function() -- 1104
-					local _ <close> = setmetatable({ }, { -- 1105
-						__close = function() -- 1105
-							allClear() -- 1106
-							testingThread = nil -- 1107
-							isInEntry = true -- 1108
-							currentEntry = nil -- 1109
-							return print("Testing done!") -- 1110
-						end -- 1105
-					}) -- 1105
-					for _, entry in ipairs(allEntries) do -- 1111
-						allClear() -- 1112
-						print("Start " .. tostring(entry.entryName)) -- 1113
-						enterDemoEntry(entry) -- 1114
-						sleep(2) -- 1115
-						print("Stop " .. tostring(entry.entryName)) -- 1116
-					end -- 1111
-				end) -- 1104
+			do -- 1101
+				local changed -- 1101
+				changed, webIDETourCompleted = Checkbox(zh and "导览已完成" or "User Tour Done", webIDETourCompleted) -- 1101
+				if changed then -- 1101
+					config.webIDETourCompleted = webIDETourCompleted -- 1102
+				end -- 1101
 			end -- 1101
-		end) -- 1082
-	end -- 974
-end -- 962
-local icon = Path("Script", "Dev", "icon_s.png") -- 1118
-local iconTex = nil -- 1119
-thread(function() -- 1120
-	if Cache:loadAsync(icon) then -- 1120
-		iconTex = Texture2D(icon) -- 1120
-	end -- 1120
-end) -- 1120
-local webStatus = nil -- 1122
-local urlClicked = nil -- 1123
-local authCode = string.format("%06d", math.random(0, 999999)) -- 1125
-local authCodeTTL = 30.0 -- 1127
-_module_0.getAuthCode = function() -- 1128
-	return authCode -- 1128
-end -- 1128
-_module_0.invalidateAuthCode = function() -- 1129
-	authCode = string.format("%06d", math.random(0, 999999)) -- 1130
-	authCodeTTL = 30.0 -- 1131
-end -- 1129
-local AuthSession -- 1133
-do -- 1133
-	local pending = nil -- 1134
-	local session = nil -- 1135
-	AuthSession = { -- 1137
-		beginPending = function(sessionId, confirmCode, expiresAt, ttl) -- 1137
-			pending = { -- 1139
-				sessionId = sessionId, -- 1139
-				confirmCode = confirmCode, -- 1140
-				expiresAt = expiresAt, -- 1141
-				ttl = ttl, -- 1142
-				approved = false -- 1143
-			} -- 1138
-		end, -- 1137
-		getPending = function() -- 1145
-			return pending -- 1145
-		end, -- 1145
-		approvePending = function(sessionId) -- 1147
-			if pending and pending.sessionId == sessionId then -- 1148
-				pending.approved = true -- 1149
-				return true -- 1150
-			end -- 1148
-			return false -- 1151
+			if testingThread then -- 1103
+				return BeginDisabled(function() -- 1104
+					return Button(zh and "开始自动测试" or "Test automatically") -- 1104
+				end) -- 1104
+			elseif Button(zh and "开始自动测试" or "Test automatically") then -- 1105
+				testingThread = thread(function() -- 1106
+					local _ <close> = setmetatable({ }, { -- 1107
+						__close = function() -- 1107
+							allClear() -- 1108
+							testingThread = nil -- 1109
+							isInEntry = true -- 1110
+							currentEntry = nil -- 1111
+							return print("Testing done!") -- 1112
+						end -- 1107
+					}) -- 1107
+					for _, entry in ipairs(allEntries) do -- 1113
+						allClear() -- 1114
+						print("Start " .. tostring(entry.entryName)) -- 1115
+						enterDemoEntry(entry) -- 1116
+						sleep(2) -- 1117
+						print("Stop " .. tostring(entry.entryName)) -- 1118
+					end -- 1113
+				end) -- 1106
+			end -- 1103
+		end) -- 1084
+	end -- 976
+end -- 964
+local icon = Path("Script", "Dev", "icon_s.png") -- 1120
+local iconTex = nil -- 1121
+thread(function() -- 1122
+	if Cache:loadAsync(icon) then -- 1122
+		iconTex = Texture2D(icon) -- 1122
+	end -- 1122
+end) -- 1122
+local webStatus = nil -- 1124
+local urlClicked = nil -- 1125
+local authCode = string.format("%06d", math.random(0, 999999)) -- 1127
+local authCodeTTL = 30.0 -- 1129
+_module_0.getAuthCode = function() -- 1130
+	return authCode -- 1130
+end -- 1130
+_module_0.invalidateAuthCode = function() -- 1131
+	authCode = string.format("%06d", math.random(0, 999999)) -- 1132
+	authCodeTTL = 30.0 -- 1133
+end -- 1131
+local AuthSession -- 1135
+do -- 1135
+	local pending = nil -- 1136
+	local session = nil -- 1137
+	AuthSession = { -- 1139
+		beginPending = function(sessionId, confirmCode, expiresAt, ttl) -- 1139
+			pending = { -- 1141
+				sessionId = sessionId, -- 1141
+				confirmCode = confirmCode, -- 1142
+				expiresAt = expiresAt, -- 1143
+				ttl = ttl, -- 1144
+				approved = false -- 1145
+			} -- 1140
+		end, -- 1139
+		getPending = function() -- 1147
+			return pending -- 1147
 		end, -- 1147
-		clearPending = function() -- 1153
-			pending = nil -- 1153
-		end, -- 1153
-		setSession = function(sessionId, sessionSecret) -- 1155
-			session = { -- 1157
-				sessionId = sessionId, -- 1157
-				sessionSecret = sessionSecret -- 1158
-			} -- 1156
+		approvePending = function(sessionId) -- 1149
+			if pending and pending.sessionId == sessionId then -- 1150
+				pending.approved = true -- 1151
+				return true -- 1152
+			end -- 1150
+			return false -- 1153
+		end, -- 1149
+		clearPending = function() -- 1155
+			pending = nil -- 1155
 		end, -- 1155
-		getSession = function() -- 1160
-			return session -- 1160
-		end -- 1160
-	} -- 1136
-end -- 1133
-_module_0["AuthSession"] = AuthSession -- 1133
-local transparant = Color(0x0) -- 1163
-local windowFlags = { -- 1164
-	"NoTitleBar", -- 1164
-	"NoResize", -- 1164
-	"NoMove", -- 1164
-	"NoCollapse", -- 1164
-	"NoSavedSettings", -- 1164
-	"NoFocusOnAppearing", -- 1164
-	"NoBringToFrontOnFocus" -- 1164
-} -- 1164
-local statusFlags = { -- 1173
-	"NoTitleBar", -- 1173
-	"NoResize", -- 1173
-	"NoMove", -- 1173
-	"NoCollapse", -- 1173
-	"AlwaysAutoResize", -- 1173
-	"NoSavedSettings" -- 1173
-} -- 1173
-local displayWindowFlags = { -- 1181
-	"NoDecoration", -- 1181
-	"NoSavedSettings", -- 1181
-	"NoMove", -- 1181
-	"NoScrollWithMouse", -- 1181
-	"AlwaysAutoResize", -- 1181
-	"NoFocusOnAppearing" -- 1181
-} -- 1181
-local gamepadInputWindowFlags = { -- 1189
-	"NoDecoration", -- 1189
-	"NoSavedSettings", -- 1189
-	"NoMove", -- 1189
-	"NoScrollbar", -- 1189
-	"NoScrollWithMouse", -- 1189
-	"NoFocusOnAppearing", -- 1189
-	"NoBringToFrontOnFocus" -- 1189
-} -- 1189
-local initFooter = true -- 1198
-local gamepadInputFocused = false -- 1199
-local _anon_func_5 = function(allEntries, currentIndex) -- 1241
-	if currentIndex > 1 then -- 1241
-		return allEntries[currentIndex - 1] -- 1242
-	else -- 1244
-		return allEntries[#allEntries] -- 1244
-	end -- 1241
-end -- 1241
-local _anon_func_6 = function(allEntries, currentIndex) -- 1248
-	if currentIndex < #allEntries then -- 1248
-		return allEntries[currentIndex + 1] -- 1249
-	else -- 1251
-		return allEntries[1] -- 1251
-	end -- 1248
-end -- 1248
-footerWindow = threadLoop(function() -- 1200
-	if mobileMode then -- 1201
-		return -- 1201
-	end -- 1201
-	local zh = useChinese -- 1202
-	authCodeTTL = math.max(0, authCodeTTL - App.deltaTime) -- 1203
-	if authCodeTTL <= 0 then -- 1204
-		authCodeTTL = 30.0 -- 1205
-		authCode = string.format("%06d", math.random(0, 999999)) -- 1206
-	end -- 1204
-	if HttpServer.wsConnectionCount > 0 then -- 1207
-		return -- 1208
-	end -- 1207
-	if Keyboard:isKeyDown("Escape") then -- 1209
-		allClear() -- 1210
-		App.devMode = false -- 1211
-		App:shutdown() -- 1212
+		setSession = function(sessionId, sessionSecret) -- 1157
+			session = { -- 1159
+				sessionId = sessionId, -- 1159
+				sessionSecret = sessionSecret -- 1160
+			} -- 1158
+		end, -- 1157
+		getSession = function() -- 1162
+			return session -- 1162
+		end -- 1162
+	} -- 1138
+end -- 1135
+_module_0["AuthSession"] = AuthSession -- 1135
+local transparant = Color(0x0) -- 1165
+local windowFlags = { -- 1166
+	"NoTitleBar", -- 1166
+	"NoResize", -- 1166
+	"NoMove", -- 1166
+	"NoCollapse", -- 1166
+	"NoSavedSettings", -- 1166
+	"NoFocusOnAppearing", -- 1166
+	"NoBringToFrontOnFocus" -- 1166
+} -- 1166
+local statusFlags = { -- 1175
+	"NoTitleBar", -- 1175
+	"NoResize", -- 1175
+	"NoMove", -- 1175
+	"NoCollapse", -- 1175
+	"AlwaysAutoResize", -- 1175
+	"NoSavedSettings" -- 1175
+} -- 1175
+local displayWindowFlags = { -- 1183
+	"NoDecoration", -- 1183
+	"NoSavedSettings", -- 1183
+	"NoMove", -- 1183
+	"NoScrollWithMouse", -- 1183
+	"AlwaysAutoResize", -- 1183
+	"NoFocusOnAppearing" -- 1183
+} -- 1183
+local gamepadInputWindowFlags = { -- 1191
+	"NoDecoration", -- 1191
+	"NoSavedSettings", -- 1191
+	"NoMove", -- 1191
+	"NoScrollbar", -- 1191
+	"NoScrollWithMouse", -- 1191
+	"NoFocusOnAppearing", -- 1191
+	"NoBringToFrontOnFocus" -- 1191
+} -- 1191
+local initFooter = true -- 1200
+local gamepadInputFocused = false -- 1201
+local _anon_func_5 = function(allEntries, currentIndex) -- 1243
+	if currentIndex > 1 then -- 1243
+		return allEntries[currentIndex - 1] -- 1244
+	else -- 1246
+		return allEntries[#allEntries] -- 1246
+	end -- 1243
+end -- 1243
+local _anon_func_6 = function(allEntries, currentIndex) -- 1250
+	if currentIndex < #allEntries then -- 1250
+		return allEntries[currentIndex + 1] -- 1251
+	else -- 1253
+		return allEntries[1] -- 1253
+	end -- 1250
+end -- 1250
+footerWindow = threadLoop(function() -- 1202
+	if mobileMode then -- 1203
+		return -- 1203
+	end -- 1203
+	local zh = useChinese -- 1204
+	authCodeTTL = math.max(0, authCodeTTL - App.deltaTime) -- 1205
+	if authCodeTTL <= 0 then -- 1206
+		authCodeTTL = 30.0 -- 1207
+		authCode = string.format("%06d", math.random(0, 999999)) -- 1208
+	end -- 1206
+	if HttpServer.wsConnectionCount > 0 then -- 1209
+		return -- 1210
 	end -- 1209
-	do -- 1213
-		local ctrl = Keyboard:isKeyPressed("LCtrl") -- 1214
-		if ctrl and Keyboard:isKeyDown("Q") then -- 1215
-			stop() -- 1216
-		end -- 1215
-		if ctrl and Keyboard:isKeyDown("Z") then -- 1217
-			reloadCurrentEntry() -- 1218
+	if Keyboard:isKeyDown("Escape") then -- 1211
+		allClear() -- 1212
+		App.devMode = false -- 1213
+		App:shutdown() -- 1214
+	end -- 1211
+	do -- 1215
+		local ctrl = Keyboard:isKeyPressed("LCtrl") -- 1216
+		if ctrl and Keyboard:isKeyDown("Q") then -- 1217
+			stop() -- 1218
 		end -- 1217
-		if ctrl and Keyboard:isKeyDown(",") then -- 1219
-			if showFooter then -- 1220
-				showStats = not showStats -- 1220
-			else -- 1220
-				showStats = true -- 1220
-			end -- 1220
-			showFooter = true -- 1221
-			config.showFooter = showFooter -- 1222
-			config.showStats = showStats -- 1223
+		if ctrl and Keyboard:isKeyDown("Z") then -- 1219
+			reloadCurrentEntry() -- 1220
 		end -- 1219
-		if ctrl and Keyboard:isKeyDown(".") then -- 1224
-			if showFooter then -- 1225
-				showConsole = not showConsole -- 1225
-			else -- 1225
-				showConsole = true -- 1225
-			end -- 1225
-			showFooter = true -- 1226
-			config.showFooter = showFooter -- 1227
-			config.showConsole = showConsole -- 1228
-		end -- 1224
-		if ctrl and Keyboard:isKeyDown("/") then -- 1229
-			showFooter = not showFooter -- 1230
-			config.showFooter = showFooter -- 1231
-		end -- 1229
-		local left = ctrl and Keyboard:isKeyDown("Left") -- 1232
-		local right = ctrl and Keyboard:isKeyDown("Right") -- 1233
-		local currentIndex = nil -- 1234
-		for i, entry in ipairs(allEntries) do -- 1235
-			if currentEntry == entry then -- 1236
-				currentIndex = i -- 1237
-			end -- 1236
-		end -- 1235
-		if left then -- 1238
-			allClear() -- 1239
-			if currentIndex == nil then -- 1240
-				currentIndex = #allEntries + 1 -- 1240
-			end -- 1240
-			enterDemoEntry(_anon_func_5(allEntries, currentIndex)) -- 1241
-		end -- 1238
-		if right then -- 1245
-			allClear() -- 1246
-			if currentIndex == nil then -- 1247
-				currentIndex = 0 -- 1247
-			end -- 1247
-			enterDemoEntry(_anon_func_6(allEntries, currentIndex)) -- 1248
-		end -- 1245
-	end -- 1213
-	if not showEntry then -- 1252
-		return -- 1252
-	end -- 1252
-	if isInEntry and not waitForWebStart and Keyboard:isKeyPressed("LCtrl") and Keyboard:isKeyDown("Z") then -- 1254
-		reloadDevEntry() -- 1258
+		if ctrl and Keyboard:isKeyDown(",") then -- 1221
+			if showFooter then -- 1222
+				showStats = not showStats -- 1222
+			else -- 1222
+				showStats = true -- 1222
+			end -- 1222
+			showFooter = true -- 1223
+			config.showFooter = showFooter -- 1224
+			config.showStats = showStats -- 1225
+		end -- 1221
+		if ctrl and Keyboard:isKeyDown(".") then -- 1226
+			if showFooter then -- 1227
+				showConsole = not showConsole -- 1227
+			else -- 1227
+				showConsole = true -- 1227
+			end -- 1227
+			showFooter = true -- 1228
+			config.showFooter = showFooter -- 1229
+			config.showConsole = showConsole -- 1230
+		end -- 1226
+		if ctrl and Keyboard:isKeyDown("/") then -- 1231
+			showFooter = not showFooter -- 1232
+			config.showFooter = showFooter -- 1233
+		end -- 1231
+		local left = ctrl and Keyboard:isKeyDown("Left") -- 1234
+		local right = ctrl and Keyboard:isKeyDown("Right") -- 1235
+		local currentIndex = nil -- 1236
+		for i, entry in ipairs(allEntries) do -- 1237
+			if currentEntry == entry then -- 1238
+				currentIndex = i -- 1239
+			end -- 1238
+		end -- 1237
+		if left then -- 1240
+			allClear() -- 1241
+			if currentIndex == nil then -- 1242
+				currentIndex = #allEntries + 1 -- 1242
+			end -- 1242
+			enterDemoEntry(_anon_func_5(allEntries, currentIndex)) -- 1243
+		end -- 1240
+		if right then -- 1247
+			allClear() -- 1248
+			if currentIndex == nil then -- 1249
+				currentIndex = 0 -- 1249
+			end -- 1249
+			enterDemoEntry(_anon_func_6(allEntries, currentIndex)) -- 1250
+		end -- 1247
+	end -- 1215
+	if not showEntry then -- 1254
+		return -- 1254
 	end -- 1254
-	if initFooter then -- 1259
-		initFooter = false -- 1260
-	end -- 1259
-	local width, height -- 1262
-	do -- 1262
-		local _obj_0 = App.visualSize -- 1262
-		width, height = _obj_0.width, _obj_0.height -- 1262
-	end -- 1262
-	if isInEntry then -- 1263
-		gamepadInputFocused = false -- 1264
-	else -- 1266
-		SetNextWindowBgAlpha(0.0) -- 1266
-		SetNextWindowSize(Vec2(1, 1), "Always") -- 1267
-		SetNextWindowPos(Vec2.zero, "Always") -- 1268
-		PushStyleVar("WindowPadding", Vec2.zero, function() -- 1269
-			return PushStyleVar("WindowMinSize", Vec2(1, 1), function() -- 1270
-				return Begin("DoraGamepadInput", gamepadInputWindowFlags, function() -- 1271
-					if not gamepadInputFocused then -- 1272
-						SetWindowFocus("DoraGamepadInput") -- 1273
-						gamepadInputFocused = true -- 1274
-					end -- 1272
-				end) -- 1271
-			end) -- 1270
-		end) -- 1269
-	end -- 1263
-	if isInEntry or showFooter then -- 1276
-		SetNextWindowSize(Vec2(width, 50)) -- 1277
-		SetNextWindowPos(Vec2(0, height - 50)) -- 1278
-		PushStyleVar("WindowPadding", Vec2(10, 0), function() -- 1279
-			return PushStyleVar("WindowRounding", 0, function() -- 1280
-				return Begin("Footer", windowFlags, function() -- 1281
-					Separator() -- 1282
-					if iconTex then -- 1283
-						if ImageButton("sideBtn", icon, Vec2(20, 20)) then -- 1284
-							showStats = not showStats -- 1285
-							config.showStats = showStats -- 1286
-						end -- 1284
-						SameLine() -- 1287
-						if Button(">_", Vec2(30, 30)) then -- 1288
-							showConsole = not showConsole -- 1289
-							config.showConsole = showConsole -- 1290
-						end -- 1288
-					end -- 1283
-					if isInEntry and config.updateNotification then -- 1291
-						SameLine() -- 1292
-						if ImGui.Button(zh and "更新可用" or "Update") then -- 1293
-							allClear() -- 1294
-							config.updateNotification = false -- 1295
-							enterDemoEntry({ -- 1297
-								entryName = "SelfUpdater", -- 1297
-								fileName = Path(Content.assetPath, "Script", "Tools", "SelfUpdater") -- 1298
-							}) -- 1296
-						end -- 1293
-					end -- 1291
-					if not isInEntry then -- 1299
-						SameLine() -- 1300
-						local back = Button(zh and "退出" or "Quit", Vec2(70, 30)) -- 1301
-						local currentIndex = nil -- 1302
-						for i, entry in ipairs(allEntries) do -- 1303
-							if currentEntry == entry then -- 1304
-								currentIndex = i -- 1305
-							end -- 1304
-						end -- 1303
-						if currentIndex then -- 1306
-							if currentIndex > 1 then -- 1307
-								SameLine() -- 1308
-								if Button("<<", Vec2(30, 30)) then -- 1309
-									allClear() -- 1310
-									enterDemoEntry(allEntries[currentIndex - 1]) -- 1311
-								end -- 1309
-							end -- 1307
-							if currentIndex < #allEntries then -- 1312
-								SameLine() -- 1313
-								if Button(">>", Vec2(30, 30)) then -- 1314
-									allClear() -- 1315
-									enterDemoEntry(allEntries[currentIndex + 1]) -- 1316
-								end -- 1314
-							end -- 1312
-						end -- 1306
-						SameLine() -- 1317
-						if Button(zh and "刷新" or "Reload", Vec2(70, 30)) then -- 1318
-							reloadCurrentEntry() -- 1319
-						end -- 1318
-						if back then -- 1320
-							allClear() -- 1321
-							isInEntry = true -- 1322
-							currentEntry = nil -- 1323
+	if isInEntry and not waitForWebStart and Keyboard:isKeyPressed("LCtrl") and Keyboard:isKeyDown("Z") then -- 1256
+		reloadDevEntry() -- 1260
+	end -- 1256
+	if initFooter then -- 1261
+		initFooter = false -- 1262
+	end -- 1261
+	local width, height -- 1264
+	do -- 1264
+		local _obj_0 = App.visualSize -- 1264
+		width, height = _obj_0.width, _obj_0.height -- 1264
+	end -- 1264
+	if isInEntry then -- 1265
+		gamepadInputFocused = false -- 1266
+	else -- 1268
+		SetNextWindowBgAlpha(0.0) -- 1268
+		SetNextWindowSize(Vec2(1, 1), "Always") -- 1269
+		SetNextWindowPos(Vec2.zero, "Always") -- 1270
+		PushStyleVar("WindowPadding", Vec2.zero, function() -- 1271
+			return PushStyleVar("WindowMinSize", Vec2(1, 1), function() -- 1272
+				return Begin("DoraGamepadInput", gamepadInputWindowFlags, function() -- 1273
+					if not gamepadInputFocused then -- 1274
+						SetWindowFocus("DoraGamepadInput") -- 1275
+						gamepadInputFocused = true -- 1276
+					end -- 1274
+				end) -- 1273
+			end) -- 1272
+		end) -- 1271
+	end -- 1265
+	if isInEntry or showFooter then -- 1278
+		SetNextWindowSize(Vec2(width, 50)) -- 1279
+		SetNextWindowPos(Vec2(0, height - 50)) -- 1280
+		PushStyleVar("WindowPadding", Vec2(10, 0), function() -- 1281
+			return PushStyleVar("WindowRounding", 0, function() -- 1282
+				return Begin("Footer", windowFlags, function() -- 1283
+					Separator() -- 1284
+					if iconTex then -- 1285
+						if ImageButton("sideBtn", icon, Vec2(20, 20)) then -- 1286
+							showStats = not showStats -- 1287
+							config.showStats = showStats -- 1288
+						end -- 1286
+						SameLine() -- 1289
+						if Button(">_", Vec2(30, 30)) then -- 1290
+							showConsole = not showConsole -- 1291
+							config.showConsole = showConsole -- 1292
+						end -- 1290
+					end -- 1285
+					if isInEntry and config.updateNotification then -- 1293
+						SameLine() -- 1294
+						if ImGui.Button(zh and "更新可用" or "Update") then -- 1295
+							allClear() -- 1296
+							config.updateNotification = false -- 1297
+							enterDemoEntry({ -- 1299
+								entryName = "SelfUpdater", -- 1299
+								fileName = Path(Content.assetPath, "Script", "Tools", "SelfUpdater") -- 1300
+							}) -- 1298
+						end -- 1295
+					end -- 1293
+					if not isInEntry then -- 1301
+						SameLine() -- 1302
+						local back = Button(zh and "退出" or "Quit", Vec2(70, 30)) -- 1303
+						local currentIndex = nil -- 1304
+						for i, entry in ipairs(allEntries) do -- 1305
+							if currentEntry == entry then -- 1306
+								currentIndex = i -- 1307
+							end -- 1306
+						end -- 1305
+						if currentIndex then -- 1308
+							if currentIndex > 1 then -- 1309
+								SameLine() -- 1310
+								if Button("<<", Vec2(30, 30)) then -- 1311
+									allClear() -- 1312
+									enterDemoEntry(allEntries[currentIndex - 1]) -- 1313
+								end -- 1311
+							end -- 1309
+							if currentIndex < #allEntries then -- 1314
+								SameLine() -- 1315
+								if Button(">>", Vec2(30, 30)) then -- 1316
+									allClear() -- 1317
+									enterDemoEntry(allEntries[currentIndex + 1]) -- 1318
+								end -- 1316
+							end -- 1314
+						end -- 1308
+						SameLine() -- 1319
+						if Button(zh and "刷新" or "Reload", Vec2(70, 30)) then -- 1320
+							reloadCurrentEntry() -- 1321
 						end -- 1320
-					end -- 1299
-				end) -- 1281
-			end) -- 1280
-		end) -- 1279
-	end -- 1276
-	if isInEntry then -- 1325
-		local showURL = true -- 1326
-		local webIDEWidth -- 1327
-		do -- 1327
-			local base -- 1328
-			if config.updateNotification then -- 1328
-				base = 460 -- 1328
-			else -- 1328
-				base = 360 -- 1328
-			end -- 1328
-			local extra -- 1329
-			if config.authRequired then -- 1329
-				extra = 35 -- 1329
-			else -- 1329
-				extra = 0 -- 1329
-			end -- 1329
-			webIDEWidth = base + extra -- 1330
-		end -- 1327
-		if width < webIDEWidth then -- 1331
-			showURL = false -- 1331
-		end -- 1331
-		SetNextWindowBgAlpha(0.0) -- 1332
-		SetNextWindowPos(Vec2(width, height - 50), "Always", Vec2(1, 0)) -- 1333
-		Begin("Web IDE", displayWindowFlags, function() -- 1334
-			local pending = AuthSession.getPending() -- 1335
-			local hovered = false -- 1336
-			if not pending and showURL then -- 1337
-				do -- 1338
-					local url -- 1338
-					if webStatus ~= nil then -- 1338
-						url = webStatus.url -- 1338
-					end -- 1338
-					if url then -- 1338
-						if isDesktop and not config.fullScreen then -- 1339
-							if urlClicked then -- 1340
-								BeginDisabled(function() -- 1341
-									return Button(url) -- 1341
-								end) -- 1341
-							elseif Button(url) then -- 1342
-								urlClicked = once(function() -- 1343
-									return sleep(5) -- 1343
+						if back then -- 1322
+							allClear() -- 1323
+							isInEntry = true -- 1324
+							currentEntry = nil -- 1325
+						end -- 1322
+					end -- 1301
+				end) -- 1283
+			end) -- 1282
+		end) -- 1281
+	end -- 1278
+	if isInEntry then -- 1327
+		local showURL = true -- 1328
+		local webIDEWidth -- 1329
+		do -- 1329
+			local base -- 1330
+			if config.updateNotification then -- 1330
+				base = 460 -- 1330
+			else -- 1330
+				base = 360 -- 1330
+			end -- 1330
+			local extra -- 1331
+			if config.authRequired then -- 1331
+				extra = 35 -- 1331
+			else -- 1331
+				extra = 0 -- 1331
+			end -- 1331
+			webIDEWidth = base + extra -- 1332
+		end -- 1329
+		if width < webIDEWidth then -- 1333
+			showURL = false -- 1333
+		end -- 1333
+		SetNextWindowBgAlpha(0.0) -- 1334
+		SetNextWindowPos(Vec2(width, height - 50), "Always", Vec2(1, 0)) -- 1335
+		Begin("Web IDE", displayWindowFlags, function() -- 1336
+			local pending = AuthSession.getPending() -- 1337
+			local hovered = false -- 1338
+			if not pending and showURL then -- 1339
+				do -- 1340
+					local url -- 1340
+					if webStatus ~= nil then -- 1340
+						url = webStatus.url -- 1340
+					end -- 1340
+					if url then -- 1340
+						if isDesktop and not config.fullScreen then -- 1341
+							if urlClicked then -- 1342
+								BeginDisabled(function() -- 1343
+									return Button(url) -- 1343
 								end) -- 1343
-								App:openURL("http://localhost:8866") -- 1344
-							end -- 1340
-						else -- 1346
-							TextColored(descColor, url) -- 1346
-						end -- 1339
-					else -- 1348
-						TextColored(descColor, zh and '不可用' or 'not available') -- 1348
-					end -- 1338
-				end -- 1338
-				hovered = IsItemHovered() -- 1349
-			else -- 1351
-				TextColored(descColor, "(?)") -- 1351
-				hovered = IsItemHovered() -- 1352
-			end -- 1337
-			SameLine() -- 1353
-			local themeColor = App.themeColor -- 1354
-			if pending then -- 1355
-				if not pending.approved then -- 1356
-					local remaining = math.max(0, pending.expiresAt - os.time()) -- 1357
-					local ttl = pending.ttl or 1 -- 1358
-					PushStyleColor("Text", themeColor, function() -- 1359
-						ImGui.ProgressBar(remaining / ttl, Vec2(40, 30), pending.confirmCode) -- 1360
-						hovered = hovered or IsItemHovered() -- 1361
-					end) -- 1359
-					SameLine() -- 1362
-					if Button(zh and "确认" or "Approve", Vec2(70, 30)) then -- 1363
-						AuthSession.approvePending(pending.sessionId) -- 1364
-					end -- 1363
-					if hovered then -- 1365
-						return BeginTooltip(function() -- 1366
-							return PushTextWrapPos(280, function() -- 1367
-								return Text(zh and 'Web IDE 正在等待确认，请核对浏览器中的会话码并点击确认' or 'Web IDE is waiting for confirmation. Match the session code in the browser and click approve.') -- 1368
-							end) -- 1367
-						end) -- 1366
+							elseif Button(url) then -- 1344
+								urlClicked = once(function() -- 1345
+									return sleep(5) -- 1345
+								end) -- 1345
+								App:openURL("http://localhost:8866") -- 1346
+							end -- 1342
+						else -- 1348
+							TextColored(descColor, url) -- 1348
+						end -- 1341
+					else -- 1350
+						TextColored(descColor, zh and '不可用' or 'not available') -- 1350
+					end -- 1340
+				end -- 1340
+				hovered = IsItemHovered() -- 1351
+			else -- 1353
+				TextColored(descColor, "(?)") -- 1353
+				hovered = IsItemHovered() -- 1354
+			end -- 1339
+			SameLine() -- 1355
+			local themeColor = App.themeColor -- 1356
+			if pending then -- 1357
+				if not pending.approved then -- 1358
+					local remaining = math.max(0, pending.expiresAt - os.time()) -- 1359
+					local ttl = pending.ttl or 1 -- 1360
+					PushStyleColor("Text", themeColor, function() -- 1361
+						ImGui.ProgressBar(remaining / ttl, Vec2(40, 30), pending.confirmCode) -- 1362
+						hovered = hovered or IsItemHovered() -- 1363
+					end) -- 1361
+					SameLine() -- 1364
+					if Button(zh and "确认" or "Approve", Vec2(70, 30)) then -- 1365
+						AuthSession.approvePending(pending.sessionId) -- 1366
 					end -- 1365
-				end -- 1356
-			else -- 1370
-				if config.authRequired then -- 1370
-					PushStyleColor("Text", themeColor, function() -- 1371
-						ImGui.ProgressBar(authCodeTTL / 30.0, Vec2(60, 30), authCode) -- 1372
-						hovered = hovered or IsItemHovered() -- 1373
-					end) -- 1371
-					if hovered then -- 1374
-						return BeginTooltip(function() -- 1375
-							return PushTextWrapPos(280, function() -- 1376
-								local url -- 1377
-								if webStatus ~= nil then -- 1377
-									url = webStatus.url -- 1377
-								end -- 1377
-								if url then -- 1377
-									local address -- 1378
-									if showURL then -- 1378
-										address = "Web IDE" -- 1378
-									else -- 1378
-										address = url -- 1378
-									end -- 1378
-									return Text(zh and "在本机或是本地局域网连接的其他设备上，使用浏览器访问 " .. tostring(address) .. " 并输入后面的 PIN 码进行使用 （PIN 仅用于一次认证）" or "Open " .. tostring(address) .. " in a browser on this machine or another device on the local network and enter the PIN below to start (PIN is one-time)") -- 1379
-								else -- 1381
-									return Text(zh and 'Web IDE 不可用' or 'Web IDE not available') -- 1381
-								end -- 1377
-							end) -- 1376
-						end) -- 1375
-					end -- 1374
-				else -- 1383
-					if hovered then -- 1383
-						return BeginTooltip(function() -- 1384
-							return PushTextWrapPos(280, function() -- 1385
-								local url -- 1386
-								if webStatus ~= nil then -- 1386
-									url = webStatus.url -- 1386
-								end -- 1386
-								if url then -- 1386
-									local address -- 1387
-									if showURL then -- 1387
-										address = "Web IDE" -- 1387
-									else -- 1387
-										address = url -- 1387
-									end -- 1387
-									return Text(zh and "在本机或是本地局域网连接的其他设备上，使用浏览器访问 " .. tostring(address) or "Open " .. tostring(address) .. " in a browser on this machine or another device on the local network") -- 1388
-								else -- 1390
-									return Text(zh and 'Web IDE 不可用' or 'Web IDE not available') -- 1390
-								end -- 1386
-							end) -- 1385
-						end) -- 1384
-					end -- 1383
-				end -- 1370
-			end -- 1355
-		end) -- 1334
-	end -- 1325
-	if not isInEntry then -- 1392
-		SetNextWindowSize(Vec2(50, 50)) -- 1393
-		SetNextWindowPos(Vec2(width - 50, height - 50)) -- 1394
-		PushStyleColor("WindowBg", transparant, function() -- 1395
-			return Begin("Show", displayWindowFlags, function() -- 1395
-				if width >= 370 then -- 1396
-					local changed -- 1397
-					changed, showFooter = Checkbox("##dev", showFooter) -- 1397
-					if changed then -- 1397
-						config.showFooter = showFooter -- 1398
-					end -- 1397
-				end -- 1396
-			end) -- 1395
-		end) -- 1395
-	end -- 1392
-	if isInEntry or showFooter then -- 1400
-		if showStats then -- 1401
-			PushStyleVar("WindowRounding", 0, function() -- 1402
-				SetNextWindowPos(Vec2(0, 0), "Always") -- 1403
-				SetNextWindowSize(Vec2(0, height - 50)) -- 1404
-				showStats = ShowStats(showStats, statusFlags, extraOperations) -- 1405
-				config.showStats = showStats -- 1406
-			end) -- 1402
-		end -- 1401
-		if showConsole then -- 1407
-			SetNextWindowPos(Vec2(width - 425, height - 375), "FirstUseEver") -- 1408
-			return PushStyleVar("WindowRounding", 6, function() -- 1409
-				return ShowConsole() -- 1410
-			end) -- 1409
-		end -- 1407
-	end -- 1400
-end) -- 1200
-local MaxWidth <const> = 960 -- 1412
-local toolOpen = false -- 1414
-local filterText = nil -- 1415
-allEntries.anyEntryMatched = false -- 1416
-allEntries.match = function(name) -- 1417
-	local res = not filterText or name:lower():match(filterText) -- 1418
-	if res then -- 1419
-		allEntries.anyEntryMatched = true -- 1419
-	end -- 1419
-	return res -- 1420
-end -- 1417
-allEntries.thinSep = function() -- 1422
-	return PushStyleVar("SeparatorTextBorderSize", 1, function() -- 1422
-		return SeparatorText("") -- 1422
-	end) -- 1422
-end -- 1422
-entryWindow = threadLoop(function() -- 1424
-	local connected = syncWebIDEControl() -- 1425
-	if not connected and not mobileMode and isInEntry and not testingThread then -- 1427
-		if not allEntries.pendingPackagePath then -- 1428
-			local path = App:takeReceivedFile() -- 1429
-			if path ~= "" then -- 1430
-				allEntries.pendingPackagePath = path -- 1430
-			end -- 1430
-		end -- 1428
-		if allEntries.pendingPackagePath then -- 1431
-			pendingUIMode = true -- 1431
-		end -- 1431
-	end -- 1427
-	if (pendingUIMode ~= nil) then -- 1433
-		local nextMode = pendingUIMode -- 1434
-		pendingUIMode = nil -- 1435
-		applyUIMode(nextMode) -- 1436
-	end -- 1433
-	if mobileMode and not connected then -- 1437
-		if isInEntry and not feedHost then -- 1438
-			applyUIMode(true) -- 1438
-		end -- 1438
-		return -- 1439
-	end -- 1437
-	if App.fpsLimited ~= config.fpsLimited then -- 1440
-		config.fpsLimited = App.fpsLimited -- 1441
-	end -- 1440
-	if App.targetFPS ~= config.targetFPS then -- 1442
-		config.targetFPS = App.targetFPS -- 1443
+					if hovered then -- 1367
+						return BeginTooltip(function() -- 1368
+							return PushTextWrapPos(280, function() -- 1369
+								return Text(zh and 'Web IDE 正在等待确认，请核对浏览器中的会话码并点击确认' or 'Web IDE is waiting for confirmation. Match the session code in the browser and click approve.') -- 1370
+							end) -- 1369
+						end) -- 1368
+					end -- 1367
+				end -- 1358
+			else -- 1372
+				if config.authRequired then -- 1372
+					PushStyleColor("Text", themeColor, function() -- 1373
+						ImGui.ProgressBar(authCodeTTL / 30.0, Vec2(60, 30), authCode) -- 1374
+						hovered = hovered or IsItemHovered() -- 1375
+					end) -- 1373
+					if hovered then -- 1376
+						return BeginTooltip(function() -- 1377
+							return PushTextWrapPos(280, function() -- 1378
+								local url -- 1379
+								if webStatus ~= nil then -- 1379
+									url = webStatus.url -- 1379
+								end -- 1379
+								if url then -- 1379
+									local address -- 1380
+									if showURL then -- 1380
+										address = "Web IDE" -- 1380
+									else -- 1380
+										address = url -- 1380
+									end -- 1380
+									return Text(zh and "在本机或是本地局域网连接的其他设备上，使用浏览器访问 " .. tostring(address) .. " 并输入后面的 PIN 码进行使用 （PIN 仅用于一次认证）" or "Open " .. tostring(address) .. " in a browser on this machine or another device on the local network and enter the PIN below to start (PIN is one-time)") -- 1381
+								else -- 1383
+									return Text(zh and 'Web IDE 不可用' or 'Web IDE not available') -- 1383
+								end -- 1379
+							end) -- 1378
+						end) -- 1377
+					end -- 1376
+				else -- 1385
+					if hovered then -- 1385
+						return BeginTooltip(function() -- 1386
+							return PushTextWrapPos(280, function() -- 1387
+								local url -- 1388
+								if webStatus ~= nil then -- 1388
+									url = webStatus.url -- 1388
+								end -- 1388
+								if url then -- 1388
+									local address -- 1389
+									if showURL then -- 1389
+										address = "Web IDE" -- 1389
+									else -- 1389
+										address = url -- 1389
+									end -- 1389
+									return Text(zh and "在本机或是本地局域网连接的其他设备上，使用浏览器访问 " .. tostring(address) or "Open " .. tostring(address) .. " in a browser on this machine or another device on the local network") -- 1390
+								else -- 1392
+									return Text(zh and 'Web IDE 不可用' or 'Web IDE not available') -- 1392
+								end -- 1388
+							end) -- 1387
+						end) -- 1386
+					end -- 1385
+				end -- 1372
+			end -- 1357
+		end) -- 1336
+	end -- 1327
+	if not isInEntry then -- 1394
+		SetNextWindowSize(Vec2(50, 50)) -- 1395
+		SetNextWindowPos(Vec2(width - 50, height - 50)) -- 1396
+		PushStyleColor("WindowBg", transparant, function() -- 1397
+			return Begin("Show", displayWindowFlags, function() -- 1397
+				if width >= 370 then -- 1398
+					local changed -- 1399
+					changed, showFooter = Checkbox("##dev", showFooter) -- 1399
+					if changed then -- 1399
+						config.showFooter = showFooter -- 1400
+					end -- 1399
+				end -- 1398
+			end) -- 1397
+		end) -- 1397
+	end -- 1394
+	if isInEntry or showFooter then -- 1402
+		if showStats then -- 1403
+			PushStyleVar("WindowRounding", 0, function() -- 1404
+				SetNextWindowPos(Vec2(0, 0), "Always") -- 1405
+				SetNextWindowSize(Vec2(0, height - 50)) -- 1406
+				showStats = ShowStats(showStats, statusFlags, extraOperations) -- 1407
+				config.showStats = showStats -- 1408
+			end) -- 1404
+		end -- 1403
+		if showConsole then -- 1409
+			SetNextWindowPos(Vec2(width - 425, height - 375), "FirstUseEver") -- 1410
+			return PushStyleVar("WindowRounding", 6, function() -- 1411
+				return ShowConsole() -- 1412
+			end) -- 1411
+		end -- 1409
+	end -- 1402
+end) -- 1202
+local MaxWidth <const> = 960 -- 1414
+local toolOpen = false -- 1416
+local filterText = nil -- 1417
+allEntries.anyEntryMatched = false -- 1418
+allEntries.match = function(name) -- 1419
+	local res = not filterText or name:lower():match(filterText) -- 1420
+	if res then -- 1421
+		allEntries.anyEntryMatched = true -- 1421
+	end -- 1421
+	return res -- 1422
+end -- 1419
+allEntries.thinSep = function() -- 1424
+	return PushStyleVar("SeparatorTextBorderSize", 1, function() -- 1424
+		return SeparatorText("") -- 1424
+	end) -- 1424
+end -- 1424
+entryWindow = threadLoop(function() -- 1426
+	local connected = syncWebIDEControl() -- 1427
+	if not connected and not mobileMode and isInEntry and not testingThread then -- 1429
+		if not allEntries.pendingPackagePath then -- 1430
+			local path = App:takeReceivedFile() -- 1431
+			if path ~= "" then -- 1432
+				allEntries.pendingPackagePath = path -- 1432
+			end -- 1432
+		end -- 1430
+		if allEntries.pendingPackagePath then -- 1433
+			pendingUIMode = true -- 1433
+		end -- 1433
+	end -- 1429
+	if (pendingUIMode ~= nil) then -- 1435
+		local nextMode = pendingUIMode -- 1436
+		pendingUIMode = nil -- 1437
+		applyUIMode(nextMode) -- 1438
+	end -- 1435
+	if mobileMode and not connected then -- 1439
+		if isInEntry and not feedHost then -- 1440
+			applyUIMode(true) -- 1440
+		end -- 1440
+		return -- 1441
+	end -- 1439
+	if App.fpsLimited ~= config.fpsLimited then -- 1442
+		config.fpsLimited = App.fpsLimited -- 1443
 	end -- 1442
-	if View.vsync ~= config.vsync then -- 1444
-		config.vsync = View.vsync -- 1445
+	if App.targetFPS ~= config.targetFPS then -- 1444
+		config.targetFPS = App.targetFPS -- 1445
 	end -- 1444
-	if Director.scheduler.fixedFPS ~= config.fixedFPS then -- 1446
-		config.fixedFPS = Director.scheduler.fixedFPS -- 1447
+	if View.vsync ~= config.vsync then -- 1446
+		config.vsync = View.vsync -- 1447
 	end -- 1446
-	if Director.profilerSending ~= config.webProfiler then -- 1448
-		config.webProfiler = Director.profilerSending -- 1449
+	if Director.scheduler.fixedFPS ~= config.fixedFPS then -- 1448
+		config.fixedFPS = Director.scheduler.fixedFPS -- 1449
 	end -- 1448
-	if urlClicked then -- 1450
-		local _, result = coroutine.resume(urlClicked) -- 1451
-		if result then -- 1452
-			coroutine.close(urlClicked) -- 1453
-			urlClicked = nil -- 1454
-		end -- 1452
+	if Director.profilerSending ~= config.webProfiler then -- 1450
+		config.webProfiler = Director.profilerSending -- 1451
 	end -- 1450
-	if not isInEntry then -- 1455
-		return -- 1455
-	end -- 1455
-	local zh = useChinese -- 1456
-	local themeColor = App.themeColor -- 1457
-	if connected then -- 1458
-		local width, height -- 1459
-		do -- 1459
-			local _obj_0 = App.visualSize -- 1459
-			width, height = _obj_0.width, _obj_0.height -- 1459
-		end -- 1459
-		SetNextWindowBgAlpha(0.5) -- 1460
-		SetNextWindowPos(Vec2(width / 2, height / 2), "Always", Vec2(0.5, 0.5)) -- 1461
-		Begin("Web IDE Connected", displayWindowFlags, function() -- 1462
-			Separator() -- 1463
-			TextColored(themeColor, tostring(zh and 'Web IDE 已连接 ……' or 'Web IDE connected ...')) -- 1464
-			if iconTex then -- 1465
-				Image(icon, Vec2(24, 24)) -- 1466
-				SameLine() -- 1467
-			end -- 1465
-			local slogon = zh and 'Dora 启动！' or 'Dora Start!' -- 1468
-			TextColored(descColor, slogon) -- 1469
-			return Separator() -- 1470
-		end) -- 1462
-		return -- 1471
-	end -- 1458
-	if not showEntry then -- 1472
-		return -- 1472
-	end -- 1472
-	local fullWidth, height -- 1474
-	do -- 1474
-		local _obj_0 = App.visualSize -- 1474
-		fullWidth, height = _obj_0.width, _obj_0.height -- 1474
+	if urlClicked then -- 1452
+		local _, result = coroutine.resume(urlClicked) -- 1453
+		if result then -- 1454
+			coroutine.close(urlClicked) -- 1455
+			urlClicked = nil -- 1456
+		end -- 1454
+	end -- 1452
+	if not isInEntry then -- 1457
+		return -- 1457
+	end -- 1457
+	local zh = useChinese -- 1458
+	local themeColor = App.themeColor -- 1459
+	if connected then -- 1460
+		local width, height -- 1461
+		do -- 1461
+			local _obj_0 = App.visualSize -- 1461
+			width, height = _obj_0.width, _obj_0.height -- 1461
+		end -- 1461
+		SetNextWindowBgAlpha(0.5) -- 1462
+		SetNextWindowPos(Vec2(width / 2, height / 2), "Always", Vec2(0.5, 0.5)) -- 1463
+		Begin("Web IDE Connected", displayWindowFlags, function() -- 1464
+			Separator() -- 1465
+			TextColored(themeColor, tostring(zh and 'Web IDE 已连接 ……' or 'Web IDE connected ...')) -- 1466
+			if iconTex then -- 1467
+				Image(icon, Vec2(24, 24)) -- 1468
+				SameLine() -- 1469
+			end -- 1467
+			local slogon = zh and 'Dora 启动！' or 'Dora Start!' -- 1470
+			TextColored(descColor, slogon) -- 1471
+			return Separator() -- 1472
+		end) -- 1464
+		return -- 1473
+	end -- 1460
+	if not showEntry then -- 1474
+		return -- 1474
 	end -- 1474
-	local width = math.min(MaxWidth, fullWidth) -- 1475
-	local paddingX = math.max(10, fullWidth / 2 - width / 2 - 10) -- 1476
-	local maxColumns = math.max(math.floor(width / 200), 1) -- 1477
-	SetNextWindowPos(Vec2.zero) -- 1478
-	SetNextWindowBgAlpha(0) -- 1479
-	SetNextWindowSize(Vec2(fullWidth, 51)) -- 1480
-	do -- 1481
-		PushStyleVar("WindowPadding", Vec2(10, 0), function() -- 1482
-			return Begin("Dora Dev", windowFlags, function() -- 1483
-				Dummy(Vec2(fullWidth - 20, 0)) -- 1484
-				TextColored(themeColor, "Dora SSR " .. tostring(zh and '开发' or 'Dev')) -- 1485
-				SameLine() -- 1486
-				if Button(zh and "Go 模式" or "Go Mode") then -- 1487
-					setUIMode("mobile") -- 1488
-				end -- 1487
-				if fullWidth >= 540 then -- 1489
-					SameLine() -- 1490
-					Dummy(Vec2(fullWidth - 540, 0)) -- 1491
-					SameLine() -- 1492
-					SetNextItemWidth(zh and -95 or -140) -- 1493
-					if InputText(zh and '筛选' or 'Filter', filterBuf, { -- 1494
-						"AutoSelectAll" -- 1494
-					}) then -- 1494
-						config.filter = filterBuf.text -- 1495
-					end -- 1494
-					SameLine() -- 1496
-					if Button(zh and '下载' or 'Download') then -- 1497
-						allClear() -- 1498
-						enterDemoEntry({ -- 1500
-							entryName = "ResourceDownloader", -- 1500
-							fileName = Path(Content.assetPath, "Script", "Tools", "ResourceDownloader") -- 1501
-						}) -- 1499
-					end -- 1497
+	local fullWidth, height -- 1476
+	do -- 1476
+		local _obj_0 = App.visualSize -- 1476
+		fullWidth, height = _obj_0.width, _obj_0.height -- 1476
+	end -- 1476
+	local width = math.min(MaxWidth, fullWidth) -- 1477
+	local paddingX = math.max(10, fullWidth / 2 - width / 2 - 10) -- 1478
+	local maxColumns = math.max(math.floor(width / 200), 1) -- 1479
+	SetNextWindowPos(Vec2.zero) -- 1480
+	SetNextWindowBgAlpha(0) -- 1481
+	SetNextWindowSize(Vec2(fullWidth, 51)) -- 1482
+	do -- 1483
+		PushStyleVar("WindowPadding", Vec2(10, 0), function() -- 1484
+			return Begin("Dora Dev", windowFlags, function() -- 1485
+				Dummy(Vec2(fullWidth - 20, 0)) -- 1486
+				TextColored(themeColor, "Dora SSR " .. tostring(zh and '开发' or 'Dev')) -- 1487
+				SameLine() -- 1488
+				if Button(zh and "Go 模式" or "Go Mode") then -- 1489
+					setUIMode("mobile") -- 1490
 				end -- 1489
-				return Separator() -- 1502
-			end) -- 1483
-		end) -- 1482
-	end -- 1481
-	allEntries.anyEntryMatched = false -- 1504
-	SetNextWindowPos(Vec2(0, 50)) -- 1505
-	SetNextWindowSize(Vec2(fullWidth, height - 100)) -- 1506
-	do -- 1507
-		return PushStyleColor("WindowBg", transparant, function() -- 1508
-			return PushStyleVar("WindowPadding", Vec2(paddingX, 10), function() -- 1509
-				return PushStyleVar("Alpha", 1, function() -- 1510
-					return Begin("Content", windowFlags, function() -- 1511
-						local DemoViewWidth <const> = 220 -- 1512
-						filterText = filterBuf.text:match("[^%%%.%[]+") -- 1513
-						if filterText then -- 1514
-							filterText = filterText:lower() -- 1514
-						end -- 1514
-						if #gamesInDev > 0 then -- 1515
-							local columns = math.max(math.floor(width / DemoViewWidth), 1) -- 1516
-							Columns(columns, false) -- 1517
-							local realViewWidth = GetColumnWidth() - 50 -- 1518
-							for _index_0 = 1, #gamesInDev do -- 1519
-								local game = gamesInDev[_index_0] -- 1519
-								local gameName, fileName, examples, tests, repo, bannerFile, bannerTex = game.entryName, game.fileName, game.examples, game.tests, game.repo, game.bannerFile, game.bannerTex -- 1520
-								local displayName -- 1529
-								if repo then -- 1529
-									if zh then -- 1530
-										displayName = repo.title.zh -- 1530
-									else -- 1530
-										displayName = repo.title.en -- 1530
-									end -- 1530
-								end -- 1529
-								if displayName == nil then -- 1531
-									displayName = gameName -- 1531
+				if fullWidth >= 540 then -- 1491
+					SameLine() -- 1492
+					Dummy(Vec2(fullWidth - 540, 0)) -- 1493
+					SameLine() -- 1494
+					SetNextItemWidth(zh and -95 or -140) -- 1495
+					if InputText(zh and '筛选' or 'Filter', filterBuf, { -- 1496
+						"AutoSelectAll" -- 1496
+					}) then -- 1496
+						config.filter = filterBuf.text -- 1497
+					end -- 1496
+					SameLine() -- 1498
+					if Button(zh and '下载' or 'Download') then -- 1499
+						allClear() -- 1500
+						enterDemoEntry({ -- 1502
+							entryName = "ResourceDownloader", -- 1502
+							fileName = Path(Content.assetPath, "Script", "Tools", "ResourceDownloader") -- 1503
+						}) -- 1501
+					end -- 1499
+				end -- 1491
+				return Separator() -- 1504
+			end) -- 1485
+		end) -- 1484
+	end -- 1483
+	allEntries.anyEntryMatched = false -- 1506
+	SetNextWindowPos(Vec2(0, 50)) -- 1507
+	SetNextWindowSize(Vec2(fullWidth, height - 100)) -- 1508
+	do -- 1509
+		return PushStyleColor("WindowBg", transparant, function() -- 1510
+			return PushStyleVar("WindowPadding", Vec2(paddingX, 10), function() -- 1511
+				return PushStyleVar("Alpha", 1, function() -- 1512
+					return Begin("Content", windowFlags, function() -- 1513
+						local DemoViewWidth <const> = 220 -- 1514
+						filterText = filterBuf.text:match("[^%%%.%[]+") -- 1515
+						if filterText then -- 1516
+							filterText = filterText:lower() -- 1516
+						end -- 1516
+						if #gamesInDev > 0 then -- 1517
+							local columns = math.max(math.floor(width / DemoViewWidth), 1) -- 1518
+							Columns(columns, false) -- 1519
+							local realViewWidth = GetColumnWidth() - 50 -- 1520
+							for _index_0 = 1, #gamesInDev do -- 1521
+								local game = gamesInDev[_index_0] -- 1521
+								local gameName, fileName, examples, tests, repo, bannerFile, bannerTex = game.entryName, game.fileName, game.examples, game.tests, game.repo, game.bannerFile, game.bannerTex -- 1522
+								local displayName -- 1531
+								if repo then -- 1531
+									if zh then -- 1532
+										displayName = repo.title.zh -- 1532
+									else -- 1532
+										displayName = repo.title.en -- 1532
+									end -- 1532
 								end -- 1531
-								if allEntries.match(displayName) then -- 1532
-									TextColored(themeColor, zh and "项目：" or "Project:") -- 1533
-									SameLine() -- 1534
-									TextWrapped(displayName) -- 1535
-									if columns > 1 then -- 1536
-										if bannerFile and bannerTex then -- 1537
-											local texWidth, texHeight = bannerTex.width, bannerTex.height -- 1538
-											local displayWidth <const> = realViewWidth -- 1539
-											texHeight = displayWidth * texHeight / texWidth -- 1540
-											texWidth = displayWidth -- 1541
-											Dummy(Vec2.zero) -- 1542
-											SameLine() -- 1543
-											Image(bannerFile, Vec2(texWidth + 10, texHeight)) -- 1544
-										end -- 1537
-										if Button(tostring(zh and "开始测试" or "Game Test") .. "##" .. tostring(fileName), Vec2(-1, 40)) then -- 1545
-											enterDemoEntry(game) -- 1546
-										end -- 1545
-									else -- 1548
-										if bannerFile and bannerTex then -- 1548
-											local texWidth, texHeight = bannerTex.width, bannerTex.height -- 1549
-											local displayWidth = (fullWidth / 2 - paddingX) * 2 - 35 -- 1550
-											local sizing = 0.8 -- 1551
-											texHeight = displayWidth * sizing * texHeight / texWidth -- 1552
-											texWidth = displayWidth * sizing -- 1553
-											if texWidth > 500 then -- 1554
-												sizing = 0.6 -- 1555
-												texHeight = displayWidth * sizing * texHeight / texWidth -- 1556
-												texWidth = displayWidth * sizing -- 1557
-											end -- 1554
-											local padding = displayWidth * (1 - sizing) / 2 - 10 -- 1558
-											Dummy(Vec2(padding, 0)) -- 1559
-											SameLine() -- 1560
-											Image(bannerFile, Vec2(texWidth, texHeight)) -- 1561
-										end -- 1548
-										if Button(tostring(zh and "开始测试" or "Game Test") .. "##" .. tostring(fileName), Vec2(-1, 40)) then -- 1562
-											enterDemoEntry(game) -- 1563
-										end -- 1562
-									end -- 1536
-									if #tests == 0 and #examples == 0 then -- 1564
-										allEntries.thinSep() -- 1565
-									end -- 1564
-									NextColumn() -- 1566
-								end -- 1532
-								local showSep = false -- 1567
-								if #examples > 0 then -- 1568
-									local showExample = false -- 1569
-									for _index_1 = 1, #examples do -- 1570
-										local _des_0 = examples[_index_1] -- 1570
-										local entryName = _des_0.entryName -- 1570
-										if allEntries.match(entryName) then -- 1571
-											showExample = true -- 1571
-											break -- 1571
-										end -- 1571
-									end -- 1570
-									if showExample then -- 1572
-										showSep = true -- 1573
-										Columns(1, false) -- 1574
-										TextColored(themeColor, zh and "示例：" or "Example:") -- 1575
-										SameLine() -- 1576
-										local opened -- 1577
-										if (filterText ~= nil) then -- 1577
-											opened = showExample -- 1577
-										else -- 1577
-											opened = false -- 1577
-										end -- 1577
-										if game.exampleOpen == nil then -- 1578
-											game.exampleOpen = opened -- 1578
-										end -- 1578
-										SetNextItemOpen(game.exampleOpen) -- 1579
-										TreeNode(tostring(gameName) .. "##example-" .. tostring(fileName), function() -- 1580
-											return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1581
-												Columns(maxColumns, false) -- 1582
-												for _index_1 = 1, #examples do -- 1583
-													local example = examples[_index_1] -- 1583
-													local entryName = example.entryName -- 1584
-													if not allEntries.match(entryName) then -- 1585
-														goto _continue_0 -- 1585
-													end -- 1585
-													PushID(tostring(gameName) .. " " .. tostring(entryName) .. " example", function() -- 1586
-														if Button(entryName, Vec2(-1, 40)) then -- 1587
-															enterDemoEntry(example) -- 1588
-														end -- 1587
-														return NextColumn() -- 1589
-													end) -- 1586
-													opened = true -- 1590
-													::_continue_0:: -- 1584
-												end -- 1583
-											end) -- 1581
-										end) -- 1580
-										game.exampleOpen = opened -- 1591
+								if displayName == nil then -- 1533
+									displayName = gameName -- 1533
+								end -- 1533
+								if allEntries.match(displayName) then -- 1534
+									TextColored(themeColor, zh and "项目：" or "Project:") -- 1535
+									SameLine() -- 1536
+									TextWrapped(displayName) -- 1537
+									if columns > 1 then -- 1538
+										if bannerFile and bannerTex then -- 1539
+											local texWidth, texHeight = bannerTex.width, bannerTex.height -- 1540
+											local displayWidth <const> = realViewWidth -- 1541
+											texHeight = displayWidth * texHeight / texWidth -- 1542
+											texWidth = displayWidth -- 1543
+											Dummy(Vec2.zero) -- 1544
+											SameLine() -- 1545
+											Image(bannerFile, Vec2(texWidth + 10, texHeight)) -- 1546
+										end -- 1539
+										if Button(tostring(zh and "开始测试" or "Game Test") .. "##" .. tostring(fileName), Vec2(-1, 40)) then -- 1547
+											enterDemoEntry(game) -- 1548
+										end -- 1547
+									else -- 1550
+										if bannerFile and bannerTex then -- 1550
+											local texWidth, texHeight = bannerTex.width, bannerTex.height -- 1551
+											local displayWidth = (fullWidth / 2 - paddingX) * 2 - 35 -- 1552
+											local sizing = 0.8 -- 1553
+											texHeight = displayWidth * sizing * texHeight / texWidth -- 1554
+											texWidth = displayWidth * sizing -- 1555
+											if texWidth > 500 then -- 1556
+												sizing = 0.6 -- 1557
+												texHeight = displayWidth * sizing * texHeight / texWidth -- 1558
+												texWidth = displayWidth * sizing -- 1559
+											end -- 1556
+											local padding = displayWidth * (1 - sizing) / 2 - 10 -- 1560
+											Dummy(Vec2(padding, 0)) -- 1561
+											SameLine() -- 1562
+											Image(bannerFile, Vec2(texWidth, texHeight)) -- 1563
+										end -- 1550
+										if Button(tostring(zh and "开始测试" or "Game Test") .. "##" .. tostring(fileName), Vec2(-1, 40)) then -- 1564
+											enterDemoEntry(game) -- 1565
+										end -- 1564
+									end -- 1538
+									if #tests == 0 and #examples == 0 then -- 1566
+										allEntries.thinSep() -- 1567
+									end -- 1566
+									NextColumn() -- 1568
+								end -- 1534
+								local showSep = false -- 1569
+								if #examples > 0 then -- 1570
+									local showExample = false -- 1571
+									for _index_1 = 1, #examples do -- 1572
+										local _des_0 = examples[_index_1] -- 1572
+										local entryName = _des_0.entryName -- 1572
+										if allEntries.match(entryName) then -- 1573
+											showExample = true -- 1573
+											break -- 1573
+										end -- 1573
 									end -- 1572
-								end -- 1568
-								if #tests > 0 then -- 1592
-									local showTest = false -- 1593
-									for _index_1 = 1, #tests do -- 1594
-										local _des_0 = tests[_index_1] -- 1594
-										local entryName = _des_0.entryName -- 1594
-										if allEntries.match(entryName) then -- 1595
-											showTest = true -- 1595
-											break -- 1595
-										end -- 1595
-									end -- 1594
-									if showTest then -- 1596
-										showSep = true -- 1597
-										Columns(1, false) -- 1598
-										TextColored(themeColor, zh and "测试：" or "Test:") -- 1599
-										SameLine() -- 1600
-										local opened -- 1601
-										if (filterText ~= nil) then -- 1601
-											opened = showTest -- 1601
-										else -- 1601
-											opened = false -- 1601
-										end -- 1601
-										if game.testOpen == nil then -- 1602
-											game.testOpen = opened -- 1602
-										end -- 1602
-										SetNextItemOpen(game.testOpen) -- 1603
-										TreeNode(tostring(gameName) .. "##test-" .. tostring(fileName), function() -- 1604
-											return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1605
-												Columns(maxColumns, false) -- 1606
-												for _index_1 = 1, #tests do -- 1607
-													local test = tests[_index_1] -- 1607
-													local entryName = test.entryName -- 1608
-													if not allEntries.match(entryName) then -- 1609
-														goto _continue_0 -- 1609
-													end -- 1609
-													PushID(tostring(gameName) .. " " .. tostring(entryName) .. " test", function() -- 1610
-														if Button(entryName, Vec2(-1, 40)) then -- 1611
-															enterDemoEntry(test) -- 1612
-														end -- 1611
-														return NextColumn() -- 1613
-													end) -- 1610
-													opened = true -- 1614
-													::_continue_0:: -- 1608
-												end -- 1607
-											end) -- 1605
-										end) -- 1604
-										game.testOpen = opened -- 1615
+									if showExample then -- 1574
+										showSep = true -- 1575
+										Columns(1, false) -- 1576
+										TextColored(themeColor, zh and "示例：" or "Example:") -- 1577
+										SameLine() -- 1578
+										local opened -- 1579
+										if (filterText ~= nil) then -- 1579
+											opened = showExample -- 1579
+										else -- 1579
+											opened = false -- 1579
+										end -- 1579
+										if game.exampleOpen == nil then -- 1580
+											game.exampleOpen = opened -- 1580
+										end -- 1580
+										SetNextItemOpen(game.exampleOpen) -- 1581
+										TreeNode(tostring(gameName) .. "##example-" .. tostring(fileName), function() -- 1582
+											return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1583
+												Columns(maxColumns, false) -- 1584
+												for _index_1 = 1, #examples do -- 1585
+													local example = examples[_index_1] -- 1585
+													local entryName = example.entryName -- 1586
+													if not allEntries.match(entryName) then -- 1587
+														goto _continue_0 -- 1587
+													end -- 1587
+													PushID(tostring(gameName) .. " " .. tostring(entryName) .. " example", function() -- 1588
+														if Button(entryName, Vec2(-1, 40)) then -- 1589
+															enterDemoEntry(example) -- 1590
+														end -- 1589
+														return NextColumn() -- 1591
+													end) -- 1588
+													opened = true -- 1592
+													::_continue_0:: -- 1586
+												end -- 1585
+											end) -- 1583
+										end) -- 1582
+										game.exampleOpen = opened -- 1593
+									end -- 1574
+								end -- 1570
+								if #tests > 0 then -- 1594
+									local showTest = false -- 1595
+									for _index_1 = 1, #tests do -- 1596
+										local _des_0 = tests[_index_1] -- 1596
+										local entryName = _des_0.entryName -- 1596
+										if allEntries.match(entryName) then -- 1597
+											showTest = true -- 1597
+											break -- 1597
+										end -- 1597
 									end -- 1596
-								end -- 1592
-								if showSep then -- 1616
-									Columns(1, false) -- 1617
-									allEntries.thinSep() -- 1618
-									Columns(columns, false) -- 1619
-								end -- 1616
-							end -- 1519
-						end -- 1515
-						if #doraTools > 0 then -- 1620
-							local showTool = false -- 1621
-							for _index_0 = 1, #doraTools do -- 1622
-								local _des_0 = doraTools[_index_0] -- 1622
-								local entryName, repo = _des_0.entryName, _des_0.repo -- 1622
-								local displayName -- 1623
-								if repo then -- 1623
-									if zh then -- 1624
-										displayName = repo.title.zh -- 1624
-									else -- 1624
-										displayName = repo.title.en -- 1624
-									end -- 1624
-								end -- 1623
-								if displayName == nil then -- 1625
-									displayName = entryName -- 1625
+									if showTest then -- 1598
+										showSep = true -- 1599
+										Columns(1, false) -- 1600
+										TextColored(themeColor, zh and "测试：" or "Test:") -- 1601
+										SameLine() -- 1602
+										local opened -- 1603
+										if (filterText ~= nil) then -- 1603
+											opened = showTest -- 1603
+										else -- 1603
+											opened = false -- 1603
+										end -- 1603
+										if game.testOpen == nil then -- 1604
+											game.testOpen = opened -- 1604
+										end -- 1604
+										SetNextItemOpen(game.testOpen) -- 1605
+										TreeNode(tostring(gameName) .. "##test-" .. tostring(fileName), function() -- 1606
+											return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1607
+												Columns(maxColumns, false) -- 1608
+												for _index_1 = 1, #tests do -- 1609
+													local test = tests[_index_1] -- 1609
+													local entryName = test.entryName -- 1610
+													if not allEntries.match(entryName) then -- 1611
+														goto _continue_0 -- 1611
+													end -- 1611
+													PushID(tostring(gameName) .. " " .. tostring(entryName) .. " test", function() -- 1612
+														if Button(entryName, Vec2(-1, 40)) then -- 1613
+															enterDemoEntry(test) -- 1614
+														end -- 1613
+														return NextColumn() -- 1615
+													end) -- 1612
+													opened = true -- 1616
+													::_continue_0:: -- 1610
+												end -- 1609
+											end) -- 1607
+										end) -- 1606
+										game.testOpen = opened -- 1617
+									end -- 1598
+								end -- 1594
+								if showSep then -- 1618
+									Columns(1, false) -- 1619
+									allEntries.thinSep() -- 1620
+									Columns(columns, false) -- 1621
+								end -- 1618
+							end -- 1521
+						end -- 1517
+						if #doraTools > 0 then -- 1622
+							local showTool = false -- 1623
+							for _index_0 = 1, #doraTools do -- 1624
+								local _des_0 = doraTools[_index_0] -- 1624
+								local entryName, repo = _des_0.entryName, _des_0.repo -- 1624
+								local displayName -- 1625
+								if repo then -- 1625
+									if zh then -- 1626
+										displayName = repo.title.zh -- 1626
+									else -- 1626
+										displayName = repo.title.en -- 1626
+									end -- 1626
 								end -- 1625
-								if allEntries.match(displayName) then -- 1626
-									showTool = true -- 1626
-									break -- 1626
-								end -- 1626
-							end -- 1622
-							if not showTool then -- 1627
-								goto endEntry -- 1627
-							end -- 1627
-							Columns(1, false) -- 1628
-							TextColored(themeColor, "Dora SSR:") -- 1629
-							SameLine() -- 1630
-							Text(zh and "开发支持" or "Development Support") -- 1631
-							Separator() -- 1632
-							if #doraTools > 0 then -- 1633
-								local opened -- 1634
-								if (filterText ~= nil) then -- 1634
-									opened = showTool -- 1634
-								else -- 1634
-									opened = false -- 1634
-								end -- 1634
-								SetNextItemOpen(toolOpen) -- 1635
-								TreeNode(zh and "引擎工具" or "Engine Tools", function() -- 1636
-									return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1637
-										Columns(maxColumns, false) -- 1638
-										for _index_0 = 1, #doraTools do -- 1639
-											local tool = doraTools[_index_0] -- 1639
-											local entryName, repo = tool.entryName, tool.repo -- 1640
-											local displayName -- 1641
-											if repo then -- 1641
-												if zh then -- 1642
-													displayName = repo.title.zh -- 1642
-												else -- 1642
-													displayName = repo.title.en -- 1642
-												end -- 1642
-											end -- 1641
-											if displayName == nil then -- 1643
-												displayName = entryName -- 1643
+								if displayName == nil then -- 1627
+									displayName = entryName -- 1627
+								end -- 1627
+								if allEntries.match(displayName) then -- 1628
+									showTool = true -- 1628
+									break -- 1628
+								end -- 1628
+							end -- 1624
+							if not showTool then -- 1629
+								goto endEntry -- 1629
+							end -- 1629
+							Columns(1, false) -- 1630
+							TextColored(themeColor, "Dora SSR:") -- 1631
+							SameLine() -- 1632
+							Text(zh and "开发支持" or "Development Support") -- 1633
+							Separator() -- 1634
+							if #doraTools > 0 then -- 1635
+								local opened -- 1636
+								if (filterText ~= nil) then -- 1636
+									opened = showTool -- 1636
+								else -- 1636
+									opened = false -- 1636
+								end -- 1636
+								SetNextItemOpen(toolOpen) -- 1637
+								TreeNode(zh and "引擎工具" or "Engine Tools", function() -- 1638
+									return PushStyleVar("ItemSpacing", Vec2(20, 10), function() -- 1639
+										Columns(maxColumns, false) -- 1640
+										for _index_0 = 1, #doraTools do -- 1641
+											local tool = doraTools[_index_0] -- 1641
+											local entryName, repo = tool.entryName, tool.repo -- 1642
+											local displayName -- 1643
+											if repo then -- 1643
+												if zh then -- 1644
+													displayName = repo.title.zh -- 1644
+												else -- 1644
+													displayName = repo.title.en -- 1644
+												end -- 1644
 											end -- 1643
-											if not allEntries.match(displayName) then -- 1644
-												goto _continue_0 -- 1644
-											end -- 1644
-											if Button(displayName, Vec2(-1, 40)) then -- 1645
-												enterDemoEntry(tool) -- 1646
+											if displayName == nil then -- 1645
+												displayName = entryName -- 1645
 											end -- 1645
-											NextColumn() -- 1647
-											::_continue_0:: -- 1640
-										end -- 1639
-										Columns(1, false) -- 1648
-										opened = true -- 1649
-									end) -- 1637
-								end) -- 1636
-								toolOpen = opened -- 1650
-							end -- 1633
-						end -- 1620
-						::endEntry:: -- 1651
-						if not allEntries.anyEntryMatched then -- 1652
-							SetNextWindowBgAlpha(0) -- 1653
-							SetNextWindowPos(Vec2(fullWidth / 2, height / 2), "Always", Vec2(0.5, 0.5)) -- 1654
-							Begin("Entries Not Found", displayWindowFlags, function() -- 1655
-								Separator() -- 1656
-								TextColored(themeColor, zh and "多萝：" or "Dora:") -- 1657
-								TextColored(descColor, zh and '别担心，改变一些咒语，我们会找到新的冒险～' or 'Don\'t worry, more magic words and we\'ll find a new adventure!') -- 1658
-								return Separator() -- 1659
-							end) -- 1655
-						end -- 1652
-						Columns(1, false) -- 1660
-						Dummy(Vec2(100, 80)) -- 1661
-						return ScrollWhenDraggingOnVoid() -- 1662
-					end) -- 1511
-				end) -- 1510
-			end) -- 1509
-		end) -- 1508
-	end -- 1507
-end) -- 1424
-do -- 1667
-	local sceneModuleCache = moduleCache -- 1668
-	moduleCache = { } -- 1669
-	webStatus = oldRequire("Script.Dev.WebServer") -- 1670
-	moduleCache = sceneModuleCache -- 1671
-end -- 1667
-local _anon_func_7 = function(saved) -- 1694
-	local _val_0 = saved.kind -- 1694
-	return "local" == _val_0 or "discover" == _val_0 -- 1694
-end -- 1694
-local _anon_func_8 = function(saved) -- 1698
-	local _val_0 = saved.activeTab -- 1698
-	return "local" == _val_0 or "discover" == _val_0 -- 1698
-end -- 1698
-startMobileUI = function() -- 1673
-	local mobileFeed = oldRequire("Script.Dev.Mobile.Feed") -- 1674
-	local mobileCatalog = oldRequire("Script.Dev.Mobile.MobileCatalog") -- 1675
-	local projectCreate = oldRequire("Script.Dev.Mobile.ProjectCreate") -- 1676
-	local getMobileFeedResources -- 1677
-	do -- 1677
-		local _obj_0 = require("Script.Tools.ResourceDownloader.Catalog") -- 1677
-		getMobileFeedResources = _obj_0.getMobileFeedResources -- 1677
-	end -- 1677
-	local loadCachedCatalog -- 1678
-	do -- 1678
-		local _obj_0 = require("Script.Tools.ResourceDownloader.CatalogSync") -- 1678
-		loadCachedCatalog = _obj_0.loadCachedCatalog -- 1678
-	end -- 1678
-	local getResourceInstallPath -- 1679
+											if not allEntries.match(displayName) then -- 1646
+												goto _continue_0 -- 1646
+											end -- 1646
+											if Button(displayName, Vec2(-1, 40)) then -- 1647
+												enterDemoEntry(tool) -- 1648
+											end -- 1647
+											NextColumn() -- 1649
+											::_continue_0:: -- 1642
+										end -- 1641
+										Columns(1, false) -- 1650
+										opened = true -- 1651
+									end) -- 1639
+								end) -- 1638
+								toolOpen = opened -- 1652
+							end -- 1635
+						end -- 1622
+						::endEntry:: -- 1653
+						if not allEntries.anyEntryMatched then -- 1654
+							SetNextWindowBgAlpha(0) -- 1655
+							SetNextWindowPos(Vec2(fullWidth / 2, height / 2), "Always", Vec2(0.5, 0.5)) -- 1656
+							Begin("Entries Not Found", displayWindowFlags, function() -- 1657
+								Separator() -- 1658
+								TextColored(themeColor, zh and "多萝：" or "Dora:") -- 1659
+								TextColored(descColor, zh and '别担心，改变一些咒语，我们会找到新的冒险～' or 'Don\'t worry, more magic words and we\'ll find a new adventure!') -- 1660
+								return Separator() -- 1661
+							end) -- 1657
+						end -- 1654
+						Columns(1, false) -- 1662
+						Dummy(Vec2(100, 80)) -- 1663
+						return ScrollWhenDraggingOnVoid() -- 1664
+					end) -- 1513
+				end) -- 1512
+			end) -- 1511
+		end) -- 1510
+	end -- 1509
+end) -- 1426
+do -- 1669
+	local sceneModuleCache = moduleCache -- 1670
+	moduleCache = { } -- 1671
+	webStatus = oldRequire("Script.Dev.WebServer") -- 1672
+	moduleCache = sceneModuleCache -- 1673
+end -- 1669
+local _anon_func_7 = function(saved) -- 1696
+	local _val_0 = saved.kind -- 1696
+	return "local" == _val_0 or "discover" == _val_0 -- 1696
+end -- 1696
+local _anon_func_8 = function(saved) -- 1700
+	local _val_0 = saved.activeTab -- 1700
+	return "local" == _val_0 or "discover" == _val_0 -- 1700
+end -- 1700
+startMobileUI = function() -- 1675
+	local mobileFeed = oldRequire("Script.Dev.Mobile.Feed") -- 1676
+	local mobileCatalog = oldRequire("Script.Dev.Mobile.MobileCatalog") -- 1677
+	local projectCreate = oldRequire("Script.Dev.Mobile.ProjectCreate") -- 1678
+	local getMobileFeedResources -- 1679
 	do -- 1679
-		local _obj_0 = require("Script.Tools.ResourceDownloader.GitInstaller") -- 1679
-		getResourceInstallPath = _obj_0.getResourceInstallPath -- 1679
+		local _obj_0 = require("Script.Tools.ResourceDownloader.Catalog") -- 1679
+		getMobileFeedResources = _obj_0.getMobileFeedResources -- 1679
 	end -- 1679
-	local lifecycle = oldRequire("Script.Dev.Mobile.Lifecycle") -- 1680
-	local playOverlay = oldRequire("Script.Dev.Mobile.PlayOverlay") -- 1681
-	local feedOptions = nil -- 1682
-	local mobileLaunchErrors = { } -- 1683
-	local withMobileLaunchErrors -- 1684
-	withMobileLaunchErrors = function(items) -- 1684
-		for _index_0 = 1, #items do -- 1685
-			local item = items[_index_0] -- 1685
-			item.launchError = mobileLaunchErrors[item.id] -- 1686
-		end -- 1685
-		return items -- 1687
-	end -- 1684
-	local rememberedMobileFeedData = config.mobileFeedCurrentCard -- 1688
-	local loadRememberedMobileFeedState -- 1689
-	loadRememberedMobileFeedState = function() -- 1689
-		local raw = rememberedMobileFeedData -- 1690
-		if not (type(raw) == "string" and raw ~= "") then -- 1691
-			return -- 1691
-		end -- 1691
-		local ok, saved = pcall(json.decode, raw) -- 1692
-		if not (ok and type(saved) == "table") then -- 1693
+	local loadCachedCatalog -- 1680
+	do -- 1680
+		local _obj_0 = require("Script.Tools.ResourceDownloader.CatalogSync") -- 1680
+		loadCachedCatalog = _obj_0.loadCachedCatalog -- 1680
+	end -- 1680
+	local getResourceInstallPath -- 1681
+	do -- 1681
+		local _obj_0 = require("Script.Tools.ResourceDownloader.GitInstaller") -- 1681
+		getResourceInstallPath = _obj_0.getResourceInstallPath -- 1681
+	end -- 1681
+	local lifecycle = oldRequire("Script.Dev.Mobile.Lifecycle") -- 1682
+	local playOverlay = oldRequire("Script.Dev.Mobile.PlayOverlay") -- 1683
+	local feedOptions = nil -- 1684
+	local mobileLaunchErrors = { } -- 1685
+	local withMobileLaunchErrors -- 1686
+	withMobileLaunchErrors = function(items) -- 1686
+		for _index_0 = 1, #items do -- 1687
+			local item = items[_index_0] -- 1687
+			item.launchError = mobileLaunchErrors[item.id] -- 1688
+		end -- 1687
+		return items -- 1689
+	end -- 1686
+	local rememberedMobileFeedData = config.mobileFeedCurrentCard -- 1690
+	local loadRememberedMobileFeedState -- 1691
+	loadRememberedMobileFeedState = function() -- 1691
+		local raw = rememberedMobileFeedData -- 1692
+		if not (type(raw) == "string" and raw ~= "") then -- 1693
 			return -- 1693
 		end -- 1693
-		if type(saved.id) == "string" and _anon_func_7(saved) then -- 1694
-			local state = { -- 1695
-				activeTab = saved.kind -- 1695
-			} -- 1695
-			state[saved.kind] = saved -- 1696
-			return state -- 1697
-		end -- 1694
-		local state = { -- 1698
-			activeTab = _anon_func_8(saved) and saved.activeTab or "local" -- 1698
-		} -- 1698
-		local _list_0 = { -- 1699
-			"local", -- 1699
-			"discover" -- 1699
-		} -- 1699
-		for _index_0 = 1, #_list_0 do -- 1699
-			local kind = _list_0[_index_0] -- 1699
-			local entry = saved[kind] -- 1700
-			if type(entry) == "table" and type(entry.id) == "string" and entry.kind == kind then -- 1701
-				state[kind] = entry -- 1701
-			end -- 1701
-		end -- 1699
-		return state -- 1702
-	end -- 1689
-	local rememberedMobileFeedState = loadRememberedMobileFeedState() or { -- 1703
-		activeTab = "local" -- 1703
-	} -- 1703
-	local rememberMobileFeedEntry -- 1704
-	rememberMobileFeedEntry = function(entry) -- 1704
-		rememberedMobileFeedState.activeTab = entry.kind -- 1705
-		rememberedMobileFeedState[entry.kind] = { -- 1707
-			id = entry.id, -- 1707
-			kind = entry.kind, -- 1708
-			workDir = entry.workDir, -- 1709
-			fileName = entry.fileName -- 1710
-		} -- 1706
-		rememberedMobileFeedData = json.encode(rememberedMobileFeedState) -- 1712
-		rawset(config, getmetatable(config).mobileFeedCurrentCard, rememberedMobileFeedData) -- 1713
-		return DB:exec("insert or replace into Config(name, value_num, value_str, value_bool) values('mobileFeedCurrentCard', NULL, ?, NULL)", { -- 1714
-			rememberedMobileFeedData -- 1714
-		}) -- 1714
-	end -- 1704
-	local restartMobileFeed -- 1715
-	restartMobileFeed = function(entry) -- 1715
-		if feedHost then -- 1716
-			feedHost:removeFromParent(true) -- 1716
-		end -- 1716
-		feedOptions.initialEntry = entry or rememberedMobileFeedState[rememberedMobileFeedState.activeTab] -- 1717
-		local initialEntries = { } -- 1718
-		initialEntries["local"] = rememberedMobileFeedState["local"] -- 1719
-		initialEntries["discover"] = rememberedMobileFeedState["discover"] -- 1720
-		feedOptions.initialEntries = initialEntries -- 1721
-		feedHost = trackMobileHost(mobileFeed.startMobileFeed(feedOptions)) -- 1722
-	end -- 1715
-	local startMobilePlay -- 1723
-	startMobilePlay = function(entry) -- 1723
-		if HttpServer.wsConnectionCount > 0 then -- 1724
-			return -- 1724
-		end -- 1724
-		local originFeed = feedHost -- 1725
-		if remixHost then -- 1726
-			remixHost:removeFromParent(true) -- 1726
+		local ok, saved = pcall(json.decode, raw) -- 1694
+		if not (ok and type(saved) == "table") then -- 1695
+			return -- 1695
+		end -- 1695
+		if type(saved.id) == "string" and _anon_func_7(saved) then -- 1696
+			local state = { -- 1697
+				activeTab = saved.kind -- 1697
+			} -- 1697
+			state[saved.kind] = saved -- 1698
+			return state -- 1699
+		end -- 1696
+		local state = { -- 1700
+			activeTab = _anon_func_8(saved) and saved.activeTab or "local" -- 1700
+		} -- 1700
+		local _list_0 = { -- 1701
+			"local", -- 1701
+			"discover" -- 1701
+		} -- 1701
+		for _index_0 = 1, #_list_0 do -- 1701
+			local kind = _list_0[_index_0] -- 1701
+			local entry = saved[kind] -- 1702
+			if type(entry) == "table" and type(entry.id) == "string" and entry.kind == kind then -- 1703
+				state[kind] = entry -- 1703
+			end -- 1703
+		end -- 1701
+		return state -- 1704
+	end -- 1691
+	local rememberedMobileFeedState = loadRememberedMobileFeedState() or { -- 1705
+		activeTab = "local" -- 1705
+	} -- 1705
+	local rememberMobileFeedEntry -- 1706
+	rememberMobileFeedEntry = function(entry) -- 1706
+		rememberedMobileFeedState.activeTab = entry.kind -- 1707
+		rememberedMobileFeedState[entry.kind] = { -- 1709
+			id = entry.id, -- 1709
+			kind = entry.kind, -- 1710
+			workDir = entry.workDir, -- 1711
+			fileName = entry.fileName -- 1712
+		} -- 1708
+		rememberedMobileFeedData = json.encode(rememberedMobileFeedState) -- 1714
+		rawset(config, getmetatable(config).mobileFeedCurrentCard, rememberedMobileFeedData) -- 1715
+		return DB:exec("insert or replace into Config(name, value_num, value_str, value_bool) values('mobileFeedCurrentCard', NULL, ?, NULL)", { -- 1716
+			rememberedMobileFeedData -- 1716
+		}) -- 1716
+	end -- 1706
+	local restartMobileFeed -- 1717
+	restartMobileFeed = function(entry) -- 1717
+		if feedHost then -- 1718
+			feedHost:removeFromParent(true) -- 1718
+		end -- 1718
+		feedOptions.initialEntry = entry or rememberedMobileFeedState[rememberedMobileFeedState.activeTab] -- 1719
+		local initialEntries = { } -- 1720
+		initialEntries["local"] = rememberedMobileFeedState["local"] -- 1721
+		initialEntries["discover"] = rememberedMobileFeedState["discover"] -- 1722
+		feedOptions.initialEntries = initialEntries -- 1723
+		feedHost = trackMobileHost(mobileFeed.startMobileFeed(feedOptions)) -- 1724
+	end -- 1717
+	local startMobilePlay -- 1725
+	startMobilePlay = function(entry) -- 1725
+		if HttpServer.wsConnectionCount > 0 then -- 1726
+			return -- 1726
 		end -- 1726
-		remixHost = nil -- 1727
-		mobileLaunchErrors[entry.id] = nil -- 1728
-		entry.launchError = nil -- 1729
-		local playActive = true -- 1730
-		local restoreMobileFeed -- 1731
-		restoreMobileFeed = function() -- 1731
-			if not playActive then -- 1732
-				return -- 1732
-			end -- 1732
-			playActive = false -- 1733
-			allClear() -- 1734
-			isInEntry = true -- 1735
-			currentEntry = nil -- 1736
-			return restartMobileFeed(entry) -- 1737
-		end -- 1731
-		trackMobileHost(playOverlay.startMobilePlayOverlay({ -- 1739
-			onExit = function() -- 1739
-				return restoreMobileFeed() -- 1739
-			end, -- 1739
-			onRuntimeError = function() -- 1740
-				mobileLaunchErrors[entry.id] = useChinese and "作品运行异常，已安全返回作品卡，请修改后重试。" or "The game stopped after a runtime error. Fix it and try again." -- 1741
-				return restoreMobileFeed() -- 1742
-			end -- 1740
-		})) -- 1738
-		return thread(function() -- 1744
-			local success, err = enterEntryAsync(lifecycle.resolveMobileLaunchEntry(entry)) -- 1748
-			if not playActive then -- 1749
-				return -- 1749
-			end -- 1749
-			if success then -- 1750
-				if originFeed and originFeed.parent then -- 1751
-					originFeed.visible = false -- 1751
-				end -- 1751
-				return -- 1752
-			end -- 1750
-			mobileLaunchErrors[entry.id] = useChinese and "作品启动失败，已返回作品卡，请修改后重试。" or "The game failed to start. Fix it and try again." -- 1753
-			return restoreMobileFeed() -- 1754
-		end) -- 1744
-	end -- 1723
-	feedOptions = { -- 1756
-		takeReceivedFile = function() -- 1756
-			if allEntries.pendingPackagePath then -- 1757
-				local path = allEntries.pendingPackagePath -- 1758
-				allEntries.pendingPackagePath = nil -- 1759
-				return path -- 1760
-			end -- 1757
-			return App:takeReceivedFile() -- 1761
-		end, -- 1756
-		onSwitchMode = function() -- 1762
-			if HttpServer.wsConnectionCount == 0 then -- 1762
-				pendingUIMode = false -- 1762
-			end -- 1762
-		end, -- 1762
-		onCurrentEntryChanged = rememberMobileFeedEntry, -- 1763
-		getLocalEntries = function(importedProjectPath) -- 1764
-			local dirtyProjectPath = importedProjectPath or feedOptions.dirtyProjectPath -- 1765
-			feedOptions.dirtyProjectPath = nil -- 1766
-			return withMobileLaunchErrors(getMobileFeedEntries(false, dirtyProjectPath)) -- 1767
+		local originFeed = feedHost -- 1727
+		if remixHost then -- 1728
+			remixHost:removeFromParent(true) -- 1728
+		end -- 1728
+		remixHost = nil -- 1729
+		mobileLaunchErrors[entry.id] = nil -- 1730
+		entry.launchError = nil -- 1731
+		local playActive = true -- 1732
+		local restoreMobileFeed -- 1733
+		restoreMobileFeed = function() -- 1733
+			if not playActive then -- 1734
+				return -- 1734
+			end -- 1734
+			playActive = false -- 1735
+			allClear() -- 1736
+			isInEntry = true -- 1737
+			currentEntry = nil -- 1738
+			return restartMobileFeed(entry) -- 1739
+		end -- 1733
+		trackMobileHost(playOverlay.startMobilePlayOverlay({ -- 1741
+			onExit = function() -- 1741
+				return restoreMobileFeed() -- 1741
+			end, -- 1741
+			onRuntimeError = function() -- 1742
+				mobileLaunchErrors[entry.id] = useChinese and "作品运行异常，已安全返回作品卡，请修改后重试。" or "The game stopped after a runtime error. Fix it and try again." -- 1743
+				return restoreMobileFeed() -- 1744
+			end -- 1742
+		})) -- 1740
+		return thread(function() -- 1746
+			local success, err = enterEntryAsync(lifecycle.resolveMobileLaunchEntry(entry)) -- 1750
+			if not playActive then -- 1751
+				return -- 1751
+			end -- 1751
+			if success then -- 1752
+				if originFeed and originFeed.parent then -- 1753
+					originFeed.visible = false -- 1753
+				end -- 1753
+				return -- 1754
+			end -- 1752
+			mobileLaunchErrors[entry.id] = useChinese and "作品启动失败，已返回作品卡，请修改后重试。" or "The game failed to start. Fix it and try again." -- 1755
+			return restoreMobileFeed() -- 1756
+		end) -- 1746
+	end -- 1725
+	feedOptions = { -- 1758
+		takeReceivedFile = function() -- 1758
+			if allEntries.pendingPackagePath then -- 1759
+				local path = allEntries.pendingPackagePath -- 1760
+				allEntries.pendingPackagePath = nil -- 1761
+				return path -- 1762
+			end -- 1759
+			return App:takeReceivedFile() -- 1763
+		end, -- 1758
+		onSwitchMode = function() -- 1764
+			if HttpServer.wsConnectionCount == 0 then -- 1764
+				pendingUIMode = false -- 1764
+			end -- 1764
 		end, -- 1764
-		syncDiscover = function(onProgress, onDone) -- 1768
-			return mobileCatalog.syncMobileCatalog(onProgress, onDone) -- 1768
-		end, -- 1768
-		getDiscoverEntries = function() -- 1769
-			local cached = loadCachedCatalog() -- 1770
-			if not (cached.success and cached.snapshot) then -- 1771
-				return { } -- 1771
-			end -- 1771
-			local items = { } -- 1772
-			local _list_0 = getMobileFeedResources(cached.snapshot.catalog.resources) -- 1773
-			for _index_0 = 1, #_list_0 do -- 1773
-				local resource = _list_0[_index_0] -- 1773
-				local installed = lifecycle.isMobileResourceReady(resource) -- 1774
-				local installPath = getResourceInstallPath(resource.id) -- 1775
-				items[#items + 1] = { -- 1777
-					id = resource.id, -- 1777
-					title = resource.title[useChinese and "zh-Hans" or "en"], -- 1778
-					description = resource.description[useChinese and "zh-Hans" or "en"], -- 1779
-					kind = "discover", -- 1780
-					bannerFile = resource.bannerPath, -- 1781
-					workDir = installed and installPath or nil, -- 1782
-					fileName = installed and Path(installPath, Path:replaceExt(resource.entrypoints[1].path, "")) or nil, -- 1783
-					installed = installed, -- 1784
-					resource = resource, -- 1785
-					catalogCommit = cached.snapshot.commit, -- 1786
-					launchError = mobileLaunchErrors[resource.id] -- 1787
-				} -- 1776
+		onCurrentEntryChanged = rememberMobileFeedEntry, -- 1765
+		getLocalEntries = function(importedProjectPath) -- 1766
+			local dirtyProjectPath = importedProjectPath or feedOptions.dirtyProjectPath -- 1767
+			feedOptions.dirtyProjectPath = nil -- 1768
+			return withMobileLaunchErrors(getMobileFeedEntries(false, dirtyProjectPath)) -- 1769
+		end, -- 1766
+		syncDiscover = function(onProgress, onDone) -- 1770
+			return mobileCatalog.syncMobileCatalog(onProgress, onDone) -- 1770
+		end, -- 1770
+		getDiscoverEntries = function() -- 1771
+			local cached = loadCachedCatalog() -- 1772
+			if not (cached.success and cached.snapshot) then -- 1773
+				return { } -- 1773
 			end -- 1773
-			return items -- 1789
-		end, -- 1769
-		prepare = function(entry, repairIncomplete, onProgress, onDone) -- 1790
-			return lifecycle.prepareMobileResource(entry.resource, entry.catalogCommit, onProgress, (function(result) -- 1791
-				return onDone(result.success, result.entry, result.message, result.repairable) -- 1792
-			end), repairIncomplete) -- 1791
-		end, -- 1790
-		createProject = function(name) -- 1794
-			local result = projectCreate.createMobileTypeScriptProject(name) -- 1795
-			if not result.success then -- 1796
-				return result -- 1796
-			end -- 1796
-			local _list_0 = getMobileFeedEntries(false, result.workDir) -- 1797
-			for _index_0 = 1, #_list_0 do -- 1797
-				local entry = _list_0[_index_0] -- 1797
-				if entry.workDir == result.workDir then -- 1798
-					return { -- 1799
-						success = true, -- 1799
-						entry = entry -- 1799
-					} -- 1799
-				end -- 1798
-			end -- 1797
-			return { -- 1800
-				success = false, -- 1800
-				error = "created-project-not-found" -- 1800
-			} -- 1800
-		end, -- 1794
-		onPlay = function(entry) -- 1801
-			return startMobilePlay(entry) -- 1801
-		end, -- 1801
-		onRemix = function(entry) -- 1802
-			if HttpServer.wsConnectionCount > 0 then -- 1803
-				return -- 1803
-			end -- 1803
-			local remix = oldRequire("Script.Dev.Mobile.Remix") -- 1804
-			local originFeed = feedHost -- 1805
-			feedHost.visible = false -- 1806
-			remixHost = trackMobileHost(remix.startMobileRemix({ -- 1808
-				entry = entry, -- 1808
-				onProjectChanged = function(current) -- 1809
-					feedOptions.dirtyProjectPath = current.workDir -- 1809
-				end, -- 1809
-				onBack = function() -- 1810
-					if mobileMode and feedHost == originFeed and originFeed.parent then -- 1811
-						originFeed:emit("RestoreFeedEntry", entry) -- 1812
-						originFeed.visible = true -- 1813
-					end -- 1811
-				end, -- 1810
-				onPlay = function(current) -- 1814
-					return startMobilePlay(current) -- 1814
-				end -- 1814
-			})) -- 1807
-		end -- 1802
-	} -- 1755
-	return restartMobileFeed() -- 1817
-end -- 1673
-if mobileMode then -- 1819
-	applyUIMode(true) -- 1819
-end -- 1819
+			local items = { } -- 1774
+			local _list_0 = getMobileFeedResources(cached.snapshot.catalog.resources) -- 1775
+			for _index_0 = 1, #_list_0 do -- 1775
+				local resource = _list_0[_index_0] -- 1775
+				local installed = lifecycle.isMobileResourceReady(resource) -- 1776
+				local installPath = getResourceInstallPath(resource.id) -- 1777
+				items[#items + 1] = { -- 1779
+					id = resource.id, -- 1779
+					title = resource.title[useChinese and "zh-Hans" or "en"], -- 1780
+					description = resource.description[useChinese and "zh-Hans" or "en"], -- 1781
+					kind = "discover", -- 1782
+					bannerFile = resource.bannerPath, -- 1783
+					workDir = installed and installPath or nil, -- 1784
+					fileName = installed and Path(installPath, Path:replaceExt(resource.entrypoints[1].path, "")) or nil, -- 1785
+					installed = installed, -- 1786
+					resource = resource, -- 1787
+					catalogCommit = cached.snapshot.commit, -- 1788
+					launchError = mobileLaunchErrors[resource.id] -- 1789
+				} -- 1778
+			end -- 1775
+			return items -- 1791
+		end, -- 1771
+		prepare = function(entry, repairIncomplete, onProgress, onDone) -- 1792
+			return lifecycle.prepareMobileResource(entry.resource, entry.catalogCommit, onProgress, (function(result) -- 1793
+				return onDone(result.success, result.entry, result.message, result.repairable) -- 1794
+			end), repairIncomplete) -- 1793
+		end, -- 1792
+		createProject = function(name) -- 1796
+			local result = projectCreate.createMobileTypeScriptProject(name) -- 1797
+			if not result.success then -- 1798
+				return result -- 1798
+			end -- 1798
+			local _list_0 = getMobileFeedEntries(false, result.workDir) -- 1799
+			for _index_0 = 1, #_list_0 do -- 1799
+				local entry = _list_0[_index_0] -- 1799
+				if entry.workDir == result.workDir then -- 1800
+					return { -- 1801
+						success = true, -- 1801
+						entry = entry -- 1801
+					} -- 1801
+				end -- 1800
+			end -- 1799
+			return { -- 1802
+				success = false, -- 1802
+				error = "created-project-not-found" -- 1802
+			} -- 1802
+		end, -- 1796
+		onPlay = function(entry) -- 1803
+			return startMobilePlay(entry) -- 1803
+		end, -- 1803
+		onRemix = function(entry) -- 1804
+			if HttpServer.wsConnectionCount > 0 then -- 1805
+				return -- 1805
+			end -- 1805
+			local remix = oldRequire("Script.Dev.Mobile.Remix") -- 1806
+			local originFeed = feedHost -- 1807
+			feedHost.visible = false -- 1808
+			remixHost = trackMobileHost(remix.startMobileRemix({ -- 1810
+				entry = entry, -- 1810
+				onProjectChanged = function(current) -- 1811
+					feedOptions.dirtyProjectPath = current.workDir -- 1811
+				end, -- 1811
+				onBack = function() -- 1812
+					if mobileMode and feedHost == originFeed and originFeed.parent then -- 1813
+						originFeed:emit("RestoreFeedEntry", entry) -- 1814
+						originFeed.visible = true -- 1815
+					end -- 1813
+				end, -- 1812
+				onPlay = function(current) -- 1816
+					return startMobilePlay(current) -- 1816
+				end -- 1816
+			})) -- 1809
+		end -- 1804
+	} -- 1757
+	return restartMobileFeed() -- 1819
+end -- 1675
+if mobileMode then -- 1821
+	applyUIMode(true) -- 1821
+end -- 1821
 return _module_0 -- 1

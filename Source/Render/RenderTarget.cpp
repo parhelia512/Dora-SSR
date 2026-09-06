@@ -416,9 +416,25 @@ RenderTarget::ReadPixelsResult RenderTarget::readPixelsSync(std::vector<uint8_t>
 	return ReadPixelsResult::Success;
 }
 
+void RenderTarget::bind(bgfx::ViewId viewId) {
+	bgfx::setViewFrameBuffer(viewId, _frameBufferHandle);
+	bgfx::setViewRect(viewId, 0, 0, _textureWidth, _textureHeight);
+}
+
 void RenderTarget::saveAsync(String filename, const std::function<void(bool)>& callback) {
+	saveAsync(filename, false, callback);
+}
+
+void RenderTarget::saveAsync(String filename, bool flipY, const std::function<void(bool)>& callback) {
 	std::string file(filename);
-	if (!readPixelsAsync([file, callback](uint16_t width, uint16_t height, std::vector<uint8_t> pixels) {
+	if (!readPixelsAsync([file, flipY, callback](uint16_t width, uint16_t height, std::vector<uint8_t> pixels) {
+		if (flipY) {
+			const size_t stride = size_t(width) * 4;
+			for (size_t y = 0; y < height / 2; ++y) {
+				std::swap_ranges(pixels.begin() + y * stride, pixels.begin() + (y + 1) * stride,
+					pixels.begin() + (height - 1 - y) * stride);
+			}
+		}
 		auto data = std::make_shared<std::vector<uint8_t>>(std::move(pixels));
 		SharedAsyncThread.run(
 				[data, width, height]() {

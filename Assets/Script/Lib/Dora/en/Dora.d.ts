@@ -4944,6 +4944,16 @@ class Director {
 
 	/** Clears and recreates the persistent system UI root on its next access. */
 	clearSystemUI(): void;
+
+	/** Begin an exclusive game capture scope before starting a preview entry. */
+	beginGameCapture(): boolean;
+	/** End the scope and cancel any capture not yet submitted to the GPU. */
+	endGameCapture(): void;
+	/** Capture the next composed game frame as PNG, excluding existing tool UI.
+	 * Returns false if unavailable or busy. An accepted request invokes handler after saving.
+	 * sourceSize is the original pixel buffer size of the captured frame, before downscaling.
+	 */
+	captureGameAsync(filename: string, handler: (this: void, success: boolean, capturedAt: number, sourceSize: Size) => void): boolean;
 }
 
 const director: Director;

@@ -89,6 +89,7 @@ export async function runSingleTsTranspile(
 			const moduleName = "Script.Dev.WebServer";
 			const webServer = require(moduleName) as {
 				transpileTSFile: (
+					this: void,
 					file: string,
 					content: string,
 					projectRoot?: string,
