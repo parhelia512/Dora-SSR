@@ -192,8 +192,8 @@ export function startMobileFeed(options: MobileFeedOptions) {
 		createInput.deferFocus();
 	};
 	const openProjectIndex = () => {
-		if (tab !== "local" || preparing || transitioning || creating || createOpen || HttpServer.wsConnectionCount > 0) return;
-		local = getLocalEntries();
+		if (preparing || transitioning || creating || createOpen || HttpServer.wsConnectionCount > 0) return;
+		if (tab === "local") local = getLocalEntries();
 		projectIndexOpen = true;
 		render();
 	};
@@ -466,7 +466,7 @@ export function startMobileFeed(options: MobileFeedOptions) {
 						height={coverHeight}
 					/>)}
 					<node tag="mobile-feed-index" ref={indexRef} order={10} renderGroup={true} x={coverX + coverWidth - 62} y={coverY + coverHeight - 40} width={48} height={26} anchorX={0} anchorY={0}
-						touchEnabled={tab === "local"} swallowTouches={tab === "local"} onTapped={tab === "local" ? openProjectIndex : undefined}>
+						touchEnabled={true} swallowTouches={true} onTapped={openProjectIndex}>
 						{/* Scene geometry keeps the entire badge above Sprite covers; NanoVG surfaces render before them. */}
 						<clip-node width={48} height={26} anchorX={0} anchorY={0} stencil={<RoundedStencil width={48} height={26} radius={13} />}>
 							<draw-node><verts-shape verts={[
@@ -475,7 +475,7 @@ export function startMobileFeed(options: MobileFeedOptions) {
 							]} /></draw-node>
 						</clip-node>
 						<draw-node x={0.5} y={0.5}><polygon-shape verts={roundedRectVerts(47, 25, 12.5)} fillColor={0x00000000} borderWidth={0.5} borderColor={0x88505a6c} /></draw-node>
-						{tab === "local" ? <draw-node x={18} y={2}><polygon-shape verts={roundedRectVerts(12, 2, 1)} fillColor={colors.brand} /></draw-node> : undefined}
+						<draw-node x={18} y={2}><polygon-shape verts={roundedRectVerts(12, 2, 1)} fillColor={colors.brand} /></draw-node>
 						<label x={24} y={13} fontName={fontName} fontSize={11} text={`${index + 1} / ${data.length}`} color3={0xd7dbe3} />
 					</node>
 					<label tag="mobile-feed-current-title" x={infoX} y={infoTop} anchorX={0} anchorY={0.5} fontName={fontName} fontSize={math.floor((wide ? 30 : 25) * fontScale)}
@@ -565,12 +565,12 @@ export function startMobileFeed(options: MobileFeedOptions) {
 				</node>;
 			})() : undefined}
 			</node>
-			{projectIndexOpen ? <ProjectIndex entries={local} current={current()} x={left} y={bottom} width={usableWidth} height={usableHeight} zh={zh}
+			{projectIndexOpen ? <ProjectIndex entries={entries()} kind={tab} current={current()} x={left} y={bottom} width={usableWidth} height={usableHeight} zh={zh}
 				onClose={() => { projectIndexOpen = false; render(); }}
 				onSelect={entry => {
 					projectIndexOpen = false;
 					const location = resolveFeedLocation(local, discover, entry);
-					tab = "local"; index = location.tab === "local" ? location.index : 0;
+					tab = location.tab; index = location.index;
 					render();
 				}} /> : undefined}
 		</node>);

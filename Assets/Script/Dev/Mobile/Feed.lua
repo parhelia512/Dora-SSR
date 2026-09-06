@@ -327,34 +327,36 @@ function ____exports.startMobileFeed(options) -- 97
 		createInput.deferFocus() -- 192
 	end -- 184
 	local function openProjectIndex() -- 194
-		if tab ~= "local" or preparing or transitioning or creating or createOpen or HttpServer.wsConnectionCount > 0 then -- 194
+		if preparing or transitioning or creating or createOpen or HttpServer.wsConnectionCount > 0 then -- 194
 			return -- 195
 		end -- 195
-		____local = getLocalEntries() -- 196
+		if tab == "local" then -- 195
+			____local = getLocalEntries() -- 196
+		end -- 196
 		projectIndexOpen = true -- 197
 		render() -- 198
 	end -- 194
 	local function createErrorText(____error) -- 200
 		repeat -- 200
-			local ____switch30 = ____error -- 200
-			local ____cond30 = ____switch30 == "invalid-name" -- 200
-			if ____cond30 then -- 200
+			local ____switch31 = ____error -- 200
+			local ____cond31 = ____switch31 == "invalid-name" -- 200
+			if ____cond31 then -- 200
 				return zh and "请输入不含路径分隔符的项目名称" or "Enter a project name without path separators" -- 202
 			end -- 202
-			____cond30 = ____cond30 or ____switch30 == "target-existed" -- 202
-			if ____cond30 then -- 202
+			____cond31 = ____cond31 or ____switch31 == "target-existed" -- 202
+			if ____cond31 then -- 202
 				return zh and "已有同名项目，请换一个名称" or "A project with that name already exists" -- 203
 			end -- 203
-			____cond30 = ____cond30 or ____switch30 == "create-folder-failed" -- 203
-			if ____cond30 then -- 203
+			____cond31 = ____cond31 or ____switch31 == "create-folder-failed" -- 203
+			if ____cond31 then -- 203
 				return zh and "无法创建项目目录，请检查工作目录后重试" or "Could not create the project folder; check the workspace and retry" -- 204
 			end -- 204
-			____cond30 = ____cond30 or ____switch30 == "create-entry-failed" -- 204
-			if ____cond30 then -- 204
+			____cond31 = ____cond31 or ____switch31 == "create-entry-failed" -- 204
+			if ____cond31 then -- 204
 				return zh and "无法写入项目入口，未完成项目已回滚" or "Could not write the project entry; the incomplete project was rolled back" -- 205
 			end -- 205
-			____cond30 = ____cond30 or ____switch30 == "created-project-not-found" -- 205
-			if ____cond30 then -- 205
+			____cond31 = ____cond31 or ____switch31 == "created-project-not-found" -- 205
+			if ____cond31 then -- 205
 				return zh and "项目已创建，但本地列表未能找到它，请返回后重试" or "The project was created but could not be found in Local; return and retry" -- 206
 			end -- 206
 			do -- 206
@@ -541,9 +543,9 @@ function ____exports.startMobileFeed(options) -- 97
 			end -- 321
 		end -- 321
 		repeat -- 321
-			local ____switch66 = action -- 321
-			local ____cond66 = ____switch66 == "previous" or ____switch66 == "next" -- 321
-			if ____cond66 then -- 321
+			local ____switch67 = action -- 321
+			local ____cond67 = ____switch67 == "previous" or ____switch67 == "next" -- 321
+			if ____cond67 then -- 321
 				do -- 321
 					returnEntry = nil -- 326
 					local target = normalizeFeedIndex( -- 327
@@ -586,13 +588,13 @@ function ____exports.startMobileFeed(options) -- 97
 					return -- 347
 				end -- 347
 			end -- 347
-			____cond66 = ____cond66 or ____switch66 == "play" -- 347
-			if ____cond66 then -- 347
+			____cond67 = ____cond67 or ____switch67 == "play" -- 347
+			if ____cond67 then -- 347
 				activate("play") -- 349
 				return -- 349
 			end -- 349
-			____cond66 = ____cond66 or ____switch66 == "remix" -- 349
-			if ____cond66 then -- 349
+			____cond67 = ____cond67 or ____switch67 == "remix" -- 349
+			if ____cond67 then -- 349
 				activate("remix") -- 350
 				return -- 350
 			end -- 350
@@ -668,9 +670,9 @@ function ____exports.startMobileFeed(options) -- 97
 		local fontScale = mobileFontScale -- 408
 		local cardIndices = getReusableCardIndices(index, #data) -- 409
 		local headerRenderOrder = 1000 -- 410
-		local ____toNode_51 = toNode -- 412
-		local ____React_createElement_50 = React.createElement -- 412
-		local ____array_49 = __TS__SparseArrayNew( -- 412
+		local ____toNode_48 = toNode -- 412
+		local ____React_createElement_47 = React.createElement -- 412
+		local ____array_46 = __TS__SparseArrayNew( -- 412
 			"node", -- 412
 			{ -- 412
 				tag = "mobile-feed-scene", -- 412
@@ -730,16 +732,16 @@ function ____exports.startMobileFeed(options) -- 97
 			}, -- 444
 			React.createElement(VerticalGradient, {width = width, height = height, topColor = 4279310117, bottomColor = 4278716943}) -- 444
 		) -- 444
-		local ____React_createElement_47 = React.createElement -- 444
-		local ____temp_45 = {visible = not projectIndexOpen} -- 444
-		local ____createOpen_31 -- 459
+		local ____React_createElement_44 = React.createElement -- 444
+		local ____temp_42 = {visible = not projectIndexOpen} -- 444
+		local ____createOpen_28 -- 459
 		if createOpen then -- 459
-			____createOpen_31 = nil -- 459
+			____createOpen_28 = nil -- 459
 		else -- 459
-			local ____temp_30 -- 459
+			local ____temp_27 -- 459
 			if item ~= nil then -- 459
-				local ____React_createElement_29 = React.createElement -- 459
-				local ____array_28 = __TS__SparseArrayNew( -- 459
+				local ____React_createElement_26 = React.createElement -- 459
+				local ____array_25 = __TS__SparseArrayNew( -- 459
 					"node", -- 459
 					{tag = "mobile-feed-card-" .. item.id, ref = cardRef, key = (tab .. "-") .. item.id}, -- 459
 					__TS__ArrayMap( -- 460
@@ -752,137 +754,123 @@ function ____exports.startMobileFeed(options) -- 97
 							width = coverWidth, -- 460
 							height = coverHeight -- 460
 						}) end -- 460
-					) -- 460
-				) -- 460
-				local ____React_createElement_25 = React.createElement -- 460
-				local ____array_24 = __TS__SparseArrayNew( -- 460
-					"node", -- 460
-					{ -- 460
-						tag = "mobile-feed-index", -- 460
-						ref = indexRef, -- 460
-						order = 10, -- 460
-						renderGroup = true, -- 460
-						x = coverX + coverWidth - 62, -- 460
-						y = coverY + coverHeight - 40, -- 460
-						width = 48, -- 460
-						height = 26, -- 460
-						anchorX = 0, -- 460
-						anchorY = 0, -- 460
-						touchEnabled = tab == "local", -- 460
-						swallowTouches = tab == "local", -- 460
-						onTapped = tab == "local" and openProjectIndex or nil -- 460
-					}, -- 460
+					), -- 460
 					React.createElement( -- 460
-						"clip-node", -- 460
+						"node", -- 460
 						{ -- 460
+							tag = "mobile-feed-index", -- 460
+							ref = indexRef, -- 460
+							order = 10, -- 460
+							renderGroup = true, -- 460
+							x = coverX + coverWidth - 62, -- 460
+							y = coverY + coverHeight - 40, -- 460
 							width = 48, -- 460
 							height = 26, -- 460
 							anchorX = 0, -- 460
 							anchorY = 0, -- 460
-							stencil = React.createElement(RoundedStencil, {width = 48, height = 26, radius = 13}) -- 460
+							touchEnabled = true, -- 460
+							swallowTouches = true, -- 460
+							onTapped = openProjectIndex -- 460
 						}, -- 460
 						React.createElement( -- 460
-							"draw-node", -- 460
-							nil, -- 460
+							"clip-node", -- 460
+							{ -- 460
+								width = 48, -- 460
+								height = 26, -- 460
+								anchorX = 0, -- 460
+								anchorY = 0, -- 460
+								stencil = React.createElement(RoundedStencil, {width = 48, height = 26, radius = 13}) -- 460
+							}, -- 460
 							React.createElement( -- 460
-								"verts-shape", -- 460
-								{verts = { -- 460
-									{ -- 473
-										Vec2(0, 0), -- 473
-										3759281694 -- 473
-									}, -- 473
-									{ -- 473
-										Vec2(48, 0), -- 473
-										3759281694 -- 473
-									}, -- 473
-									{ -- 473
-										Vec2(48, 26), -- 473
-										3760730173 -- 473
-									}, -- 473
-									{ -- 474
-										Vec2(0, 0), -- 474
-										3759281694 -- 474
-									}, -- 474
-									{ -- 474
-										Vec2(48, 26), -- 474
-										3760730173 -- 474
-									}, -- 474
-									{ -- 474
-										Vec2(0, 26), -- 474
-										3760730173 -- 474
-									} -- 474
-								}} -- 474
+								"draw-node", -- 460
+								nil, -- 460
+								React.createElement( -- 460
+									"verts-shape", -- 460
+									{verts = { -- 460
+										{ -- 473
+											Vec2(0, 0), -- 473
+											3759281694 -- 473
+										}, -- 473
+										{ -- 473
+											Vec2(48, 0), -- 473
+											3759281694 -- 473
+										}, -- 473
+										{ -- 473
+											Vec2(48, 26), -- 473
+											3760730173 -- 473
+										}, -- 473
+										{ -- 474
+											Vec2(0, 0), -- 474
+											3759281694 -- 474
+										}, -- 474
+										{ -- 474
+											Vec2(48, 26), -- 474
+											3760730173 -- 474
+										}, -- 474
+										{ -- 474
+											Vec2(0, 26), -- 474
+											3760730173 -- 474
+										} -- 474
+									}} -- 474
+								) -- 474
 							) -- 474
+						), -- 474
+						React.createElement( -- 474
+							"draw-node", -- 474
+							{x = 0.5, y = 0.5}, -- 474
+							React.createElement( -- 474
+								"polygon-shape", -- 474
+								{ -- 474
+									verts = roundedRectVerts(47, 25, 12.5), -- 474
+									fillColor = 0, -- 474
+									borderWidth = 0.5, -- 474
+									borderColor = 2286967404 -- 474
+								} -- 474
+							) -- 474
+						), -- 474
+						React.createElement( -- 474
+							"draw-node", -- 474
+							{x = 18, y = 2}, -- 474
+							React.createElement( -- 474
+								"polygon-shape", -- 474
+								{ -- 474
+									verts = roundedRectVerts(12, 2, 1), -- 474
+									fillColor = colors.brand -- 474
+								} -- 474
+							) -- 474
+						), -- 474
+						React.createElement( -- 474
+							"label", -- 474
+							{ -- 474
+								x = 24, -- 474
+								y = 13, -- 474
+								fontName = fontName, -- 474
+								fontSize = 11, -- 474
+								text = (tostring(index + 1) .. " / ") .. tostring(#data), -- 474
+								color3 = 14146531 -- 474
+							} -- 474
 						) -- 474
 					), -- 474
 					React.createElement( -- 474
-						"draw-node", -- 474
-						{x = 0.5, y = 0.5}, -- 474
-						React.createElement( -- 474
-							"polygon-shape", -- 474
-							{ -- 474
-								verts = roundedRectVerts(47, 25, 12.5), -- 474
-								fillColor = 0, -- 474
-								borderWidth = 0.5, -- 474
-								borderColor = 2286967404 -- 474
-							} -- 474
-						) -- 474
+						"label", -- 474
+						{ -- 474
+							tag = "mobile-feed-current-title", -- 474
+							x = infoX, -- 474
+							y = infoTop, -- 474
+							anchorX = 0, -- 474
+							anchorY = 0.5, -- 474
+							fontName = fontName, -- 474
+							fontSize = math.floor((wide and 30 or 25) * fontScale), -- 474
+							text = item.title, -- 474
+							textWidth = infoWidth - (item.kind == "local" and canShare and 92 or 0), -- 474
+							alignment = "Left", -- 474
+							color3 = 16052712 -- 474
+						} -- 474
 					) -- 474
 				) -- 474
-				local ____temp_23 -- 478
-				if tab == "local" then -- 478
-					____temp_23 = React.createElement( -- 478
-						"draw-node", -- 478
-						{x = 18, y = 2}, -- 478
-						React.createElement( -- 478
-							"polygon-shape", -- 478
-							{ -- 478
-								verts = roundedRectVerts(12, 2, 1), -- 478
-								fillColor = colors.brand -- 478
-							} -- 478
-						) -- 478
-					) -- 478
-				else -- 478
-					____temp_23 = nil -- 478
-				end -- 478
-				__TS__SparseArrayPush( -- 478
-					____array_24, -- 478
-					____temp_23, -- 478
-					React.createElement( -- 478
-						"label", -- 478
-						{ -- 478
-							x = 24, -- 478
-							y = 13, -- 478
-							fontName = fontName, -- 478
-							fontSize = 11, -- 478
-							text = (tostring(index + 1) .. " / ") .. tostring(#data), -- 478
-							color3 = 14146531 -- 478
-						} -- 478
-					) -- 478
-				) -- 478
-				__TS__SparseArrayPush( -- 478
-					____array_28, -- 478
-					____React_createElement_25(__TS__SparseArraySpread(____array_24)), -- 478
-					React.createElement( -- 478
-						"label", -- 478
-						{ -- 478
-							tag = "mobile-feed-current-title", -- 478
-							x = infoX, -- 478
-							y = infoTop, -- 478
-							anchorX = 0, -- 478
-							anchorY = 0.5, -- 478
-							fontName = fontName, -- 478
-							fontSize = math.floor((wide and 30 or 25) * fontScale), -- 478
-							text = item.title, -- 478
-							textWidth = infoWidth - (item.kind == "local" and canShare and 92 or 0), -- 478
-							alignment = "Left", -- 478
-							color3 = 16052712 -- 478
-						} -- 478
-					) -- 478
-				) -- 478
-				local ____temp_26 -- 483
+				local ____temp_23 -- 483
 				if item.kind == "local" and canShare then -- 483
-					____temp_26 = React.createElement( -- 483
+					____temp_23 = React.createElement( -- 483
 						MobileButton, -- 483
 						{ -- 483
 							tag = "mobile-feed-share", -- 483
@@ -896,11 +884,11 @@ function ____exports.startMobileFeed(options) -- 97
 						} -- 483
 					) -- 483
 				else -- 483
-					____temp_26 = nil -- 483
+					____temp_23 = nil -- 483
 				end -- 483
 				__TS__SparseArrayPush( -- 483
-					____array_28, -- 483
-					____temp_26, -- 483
+					____array_25, -- 483
+					____temp_23, -- 483
 					React.createElement( -- 483
 						"label", -- 483
 						{ -- 483
@@ -918,11 +906,11 @@ function ____exports.startMobileFeed(options) -- 97
 						} -- 483
 					) -- 483
 				) -- 483
-				local ____temp_27 -- 486
+				local ____temp_24 -- 486
 				if compact or shortLandscape then -- 486
-					____temp_27 = nil -- 486
+					____temp_24 = nil -- 486
 				else -- 486
-					____temp_27 = React.createElement( -- 486
+					____temp_24 = React.createElement( -- 486
 						"node", -- 486
 						{ -- 486
 							x = infoX, -- 486
@@ -955,8 +943,8 @@ function ____exports.startMobileFeed(options) -- 97
 					) -- 486
 				end -- 486
 				__TS__SparseArrayPush( -- 486
-					____array_28, -- 486
-					____temp_27, -- 486
+					____array_25, -- 486
+					____temp_24, -- 486
 					React.createElement( -- 486
 						MobileButton, -- 492
 						{ -- 492
@@ -996,9 +984,9 @@ function ____exports.startMobileFeed(options) -- 97
 						color3 = item.launchError ~= nil and 16739179 or 11055037 -- 494
 					}) -- 494
 				) -- 494
-				____temp_30 = ____React_createElement_29(__TS__SparseArraySpread(____array_28)) -- 494
+				____temp_27 = ____React_createElement_26(__TS__SparseArraySpread(____array_25)) -- 494
 			else -- 494
-				____temp_30 = React.createElement( -- 494
+				____temp_27 = React.createElement( -- 494
 					"node", -- 494
 					nil, -- 494
 					React.createElement("label", { -- 494
@@ -1020,11 +1008,11 @@ function ____exports.startMobileFeed(options) -- 97
 					}) -- 494
 				) -- 494
 			end -- 494
-			____createOpen_31 = ____temp_30 -- 459
+			____createOpen_28 = ____temp_27 -- 459
 		end -- 459
-		local ____temp_32 -- 507
+		local ____temp_29 -- 507
 		if not createOpen and not item and tab == "local" then -- 507
-			____temp_32 = React.createElement( -- 507
+			____temp_29 = React.createElement( -- 507
 				"node", -- 507
 				nil, -- 507
 				React.createElement(MobileButton, { -- 507
@@ -1050,13 +1038,13 @@ function ____exports.startMobileFeed(options) -- 97
 				) -- 509
 			) -- 509
 		else -- 509
-			____temp_32 = nil -- 510
+			____temp_29 = nil -- 510
 		end -- 510
-		local ____React_createElement_36 = React.createElement -- 510
-		local ____array_35 = __TS__SparseArrayNew("node", {tag = "mobile-feed-header", order = headerRenderOrder}) -- 510
-		local ____options_onSwitchMode_33 -- 512
+		local ____React_createElement_33 = React.createElement -- 510
+		local ____array_32 = __TS__SparseArrayNew("node", {tag = "mobile-feed-header", order = headerRenderOrder}) -- 510
+		local ____options_onSwitchMode_30 -- 512
 		if options.onSwitchMode then -- 512
-			____options_onSwitchMode_33 = React.createElement( -- 512
+			____options_onSwitchMode_30 = React.createElement( -- 512
 				"node", -- 512
 				{ -- 512
 					tag = "mobile-ui-mode-switch", -- 512
@@ -1090,11 +1078,11 @@ function ____exports.startMobileFeed(options) -- 97
 				}) -- 512
 			) -- 512
 		else -- 512
-			____options_onSwitchMode_33 = nil -- 516
+			____options_onSwitchMode_30 = nil -- 516
 		end -- 516
 		__TS__SparseArrayPush( -- 516
-			____array_35, -- 516
-			____options_onSwitchMode_33, -- 516
+			____array_32, -- 516
+			____options_onSwitchMode_30, -- 516
 			React.createElement( -- 516
 				"label", -- 516
 				{ -- 516
@@ -1138,9 +1126,9 @@ function ____exports.startMobileFeed(options) -- 97
 				renderOrder = headerRenderOrder + 1 -- 522
 			}) -- 522
 		) -- 522
-		local ____temp_34 -- 524
+		local ____temp_31 -- 524
 		if tab == "local" and options.createProject then -- 524
-			____temp_34 = React.createElement( -- 524
+			____temp_31 = React.createElement( -- 524
 				MobileNewButton, -- 524
 				{ -- 524
 					tag = "mobile-feed-create", -- 524
@@ -1152,13 +1140,13 @@ function ____exports.startMobileFeed(options) -- 97
 				} -- 524
 			) -- 524
 		else -- 524
-			____temp_34 = nil -- 526
+			____temp_31 = nil -- 526
 		end -- 526
-		__TS__SparseArrayPush(____array_35, ____temp_34) -- 526
-		local ____React_createElement_36_result_46 = ____React_createElement_36(__TS__SparseArraySpread(____array_35)) -- 526
-		local ____createOpen_44 -- 528
+		__TS__SparseArrayPush(____array_32, ____temp_31) -- 526
+		local ____React_createElement_33_result_43 = ____React_createElement_33(__TS__SparseArraySpread(____array_32)) -- 526
+		local ____createOpen_41 -- 528
 		if createOpen then -- 528
-			____createOpen_44 = (function() -- 528
+			____createOpen_41 = (function() -- 528
 				local sheetHeight = math.min(createSheetHeight, usableHeight - 64) -- 529
 				local sheetWidth = usableWidth -- 530
 				local contentWidth = sheetWidth - 40 -- 531
@@ -1171,8 +1159,8 @@ function ____exports.startMobileFeed(options) -- 97
 				local actionX = shortLandscape and 20 + inputWidth + actionGap or 20 -- 535
 				local actionY = shortLandscape and sheetHeight - createInputTop - createInputHeight or 20 -- 536
 				local cancelWidth = math.floor((actionsWidth - actionGap) * (shortLandscape and 0.34 or 0.38)) -- 537
-				local ____React_createElement_43 = React.createElement -- 537
-				local ____array_42 = __TS__SparseArrayNew( -- 537
+				local ____React_createElement_40 = React.createElement -- 537
+				local ____array_39 = __TS__SparseArrayNew( -- 537
 					"node", -- 537
 					{ -- 537
 						tag = "mobile-project-create-sheet", -- 537
@@ -1223,8 +1211,8 @@ function ____exports.startMobileFeed(options) -- 97
 						React.createElement("rect-shape", {width = width, height = height - bottom - sheetHeight, fillColor = 2348810240}) -- 540
 					) -- 540
 				) -- 540
-				local ____React_createElement_41 = React.createElement -- 540
-				local ____array_40 = __TS__SparseArrayNew( -- 540
+				local ____React_createElement_38 = React.createElement -- 540
+				local ____array_37 = __TS__SparseArrayNew( -- 540
 					"node", -- 540
 					{ -- 540
 						ref = createPanelRef, -- 540
@@ -1261,11 +1249,11 @@ function ____exports.startMobileFeed(options) -- 97
 						color3 = 11055037 -- 540
 					}) -- 540
 				) -- 540
-				local ____keptInput_39 -- 556
+				local ____keptInput_36 -- 556
 				if keptInput then -- 556
-					____keptInput_39 = nil -- 556
+					____keptInput_36 = nil -- 556
 				else -- 556
-					____keptInput_39 = React.createElement("node", { -- 556
+					____keptInput_36 = React.createElement("node", { -- 556
 						tag = "mobile-project-create-input", -- 556
 						ref = createInputRef, -- 556
 						renderOrder = 10, -- 556
@@ -1279,8 +1267,8 @@ function ____exports.startMobileFeed(options) -- 97
 					}) -- 556
 				end -- 556
 				__TS__SparseArrayPush( -- 556
-					____array_40, -- 556
-					____keptInput_39, -- 556
+					____array_37, -- 556
+					____keptInput_36, -- 556
 					React.createElement("label", { -- 556
 						tag = "mobile-project-create-error", -- 556
 						x = 20, -- 556
@@ -1323,31 +1311,32 @@ function ____exports.startMobileFeed(options) -- 97
 					) -- 563
 				) -- 563
 				__TS__SparseArrayPush( -- 563
-					____array_42, -- 563
-					____React_createElement_41(__TS__SparseArraySpread(____array_40)) -- 563
+					____array_39, -- 563
+					____React_createElement_38(__TS__SparseArraySpread(____array_37)) -- 563
 				) -- 563
-				return ____React_createElement_43(__TS__SparseArraySpread(____array_42)) -- 538
+				return ____React_createElement_40(__TS__SparseArraySpread(____array_39)) -- 538
 			end)() -- 528
 		else -- 528
-			____createOpen_44 = nil -- 566
+			____createOpen_41 = nil -- 566
 		end -- 566
 		__TS__SparseArrayPush( -- 566
-			____array_49, -- 566
-			____React_createElement_47( -- 566
+			____array_46, -- 566
+			____React_createElement_44( -- 566
 				"node", -- 566
-				____temp_45, -- 566
-				____createOpen_31, -- 566
-				____temp_32, -- 566
-				____React_createElement_36_result_46, -- 566
-				____createOpen_44 -- 566
+				____temp_42, -- 566
+				____createOpen_28, -- 566
+				____temp_29, -- 566
+				____React_createElement_33_result_43, -- 566
+				____createOpen_41 -- 566
 			) -- 566
 		) -- 566
-		local ____projectIndexOpen_48 -- 568
+		local ____projectIndexOpen_45 -- 568
 		if projectIndexOpen then -- 568
-			____projectIndexOpen_48 = React.createElement( -- 568
+			____projectIndexOpen_45 = React.createElement( -- 568
 				ProjectIndex, -- 568
 				{ -- 568
-					entries = ____local, -- 568
+					entries = entries(), -- 568
+					kind = tab, -- 568
 					current = current(), -- 568
 					x = left, -- 568
 					y = bottom, -- 568
@@ -1361,17 +1350,17 @@ function ____exports.startMobileFeed(options) -- 97
 					onSelect = function(____, entry) -- 569
 						projectIndexOpen = false -- 571
 						local location = resolveFeedLocation(____local, discover, entry) -- 572
-						tab = "local" -- 573
-						index = location.tab == "local" and location.index or 0 -- 573
+						tab = location.tab -- 573
+						index = location.index -- 573
 						render() -- 574
 					end -- 570
 				} -- 570
 			) -- 570
 		else -- 570
-			____projectIndexOpen_48 = nil -- 575
+			____projectIndexOpen_45 = nil -- 575
 		end -- 575
-		__TS__SparseArrayPush(____array_49, ____projectIndexOpen_48) -- 575
-		local scene = ____toNode_51(____React_createElement_50(__TS__SparseArraySpread(____array_49))) -- 412
+		__TS__SparseArrayPush(____array_46, ____projectIndexOpen_45) -- 575
+		local scene = ____toNode_48(____React_createElement_47(__TS__SparseArraySpread(____array_46))) -- 412
 		if scene ~= nil then -- 412
 			host:addChild(scene) -- 577
 		end -- 577
@@ -1423,42 +1412,42 @@ function ____exports.startMobileFeed(options) -- 97
 					return false -- 601
 				end -- 601
 				repeat -- 601
-					local ____switch121 = button -- 601
-					local ____cond121 = ____switch121 == "dpup" -- 601
-					if ____cond121 then -- 601
+					local ____switch122 = button -- 601
+					local ____cond122 = ____switch122 == "dpup" -- 601
+					if ____cond122 then -- 601
 						commit("previous") -- 603
 						return true -- 603
 					end -- 603
-					____cond121 = ____cond121 or ____switch121 == "dpdown" -- 603
-					if ____cond121 then -- 603
+					____cond122 = ____cond122 or ____switch122 == "dpdown" -- 603
+					if ____cond122 then -- 603
 						commit("next") -- 604
 						return true -- 604
 					end -- 604
-					____cond121 = ____cond121 or ____switch121 == "leftshoulder" -- 604
-					if ____cond121 then -- 604
+					____cond122 = ____cond122 or ____switch122 == "leftshoulder" -- 604
+					if ____cond122 then -- 604
 						setTab("discover") -- 605
 						return true -- 605
 					end -- 605
-					____cond121 = ____cond121 or ____switch121 == "rightshoulder" -- 605
-					if ____cond121 then -- 605
+					____cond122 = ____cond122 or ____switch122 == "rightshoulder" -- 605
+					if ____cond122 then -- 605
 						setTab("local") -- 606
 						return true -- 606
 					end -- 606
-					____cond121 = ____cond121 or ____switch121 == "x" -- 606
-					if ____cond121 then -- 606
+					____cond122 = ____cond122 or ____switch122 == "x" -- 606
+					if ____cond122 then -- 606
 						commit("remix") -- 607
 						return true -- 607
 					end -- 607
-					____cond121 = ____cond121 or ____switch121 == "y" -- 607
-					if ____cond121 then -- 607
-						local ____opt_52 = findGamepadNode(host, "mobile-feed-create") -- 607
-						if ____opt_52 ~= nil then -- 607
-							____opt_52:emit("Tapped") -- 608
+					____cond122 = ____cond122 or ____switch122 == "y" -- 607
+					if ____cond122 then -- 607
+						local ____opt_49 = findGamepadNode(host, "mobile-feed-create") -- 607
+						if ____opt_49 ~= nil then -- 607
+							____opt_49:emit("Tapped") -- 608
 						end -- 608
 						return true -- 608
 					end -- 608
-					____cond121 = ____cond121 or ____switch121 == "start" -- 608
-					if ____cond121 then -- 608
+					____cond122 = ____cond122 or ____switch122 == "start" -- 608
+					if ____cond122 then -- 608
 						openProjectIndex() -- 609
 						return true -- 609
 					end -- 609

@@ -71,421 +71,422 @@ local function roundedVerts(x, y, width, height, radius) -- 34
 	return verts -- 49
 end -- 34
 function ____exports.ProjectIndex(props) -- 52
-	local function onCreate() -- 63
-		local root = Node() -- 64
-		root.tag = "mobile-project-index" -- 65
-		root.anchor = Vec2.zero -- 66
-		root.size = Size(props.width, props.height) -- 67
-		root.renderGroup = true -- 68
-		root.renderOrder = 15000 -- 69
-		root.touchEnabled = true -- 70
-		root.swallowTouches = true -- 71
-		addLabel( -- 72
-			root, -- 72
-			((props.zh and "本地作品" or "LOCAL") .. " · ") .. tostring(#props.entries), -- 72
-			18, -- 72
-			4294242792, -- 72
-			16, -- 73
-			props.height - 34 -- 73
-		) -- 73
-		local back = Node() -- 74
-		back.tag = "mobile-project-index-back" -- 74
-		back.anchor = Vec2.zero -- 74
-		back.position = Vec2(props.width - 96, props.height - 62) -- 75
-		back.size = Size(80, 44) -- 75
-		back.touchEnabled = true -- 75
-		back.swallowTouches = true -- 75
-		back:onTapped(props.onClose) -- 76
-		back:addTo(root) -- 76
-		addLabel( -- 77
-			back, -- 77
-			props.zh and "返回 ›" or "Back ›", -- 77
-			18, -- 77
-			4294954035, -- 77
-			80, -- 77
-			22, -- 77
-			Vec2(1, 0.5) -- 77
-		) -- 77
-		local groups = groupFeedProjects(props.entries) -- 79
-		local listX = railWidth + 8 -- 80
-		local listWidth = math.max(40, props.width - listX - 14) -- 81
-		local listHeight = math.max(40, props.height - headerHeight - footerHeight) -- 82
-		local scroll = ScrollArea({ -- 83
-			width = listWidth, -- 83
-			height = listHeight, -- 83
-			paddingX = 0, -- 83
-			paddingY = 28, -- 83
-			scrollBar = false -- 83
-		}) -- 83
-		scroll.tag = "mobile-project-index-scroll" -- 84
-		scroll.position = Vec2(listX + listWidth / 2, footerHeight + listHeight / 2) -- 84
-		scroll:addTo(root) -- 84
-		local flat = {} -- 85
-		local groupOffsets = {} -- 86
-		local total = 0 -- 87
-		do -- 87
-			local groupIndex = 0 -- 88
-			while groupIndex < #groups do -- 88
-				local group = groups[groupIndex + 1] -- 89
-				groupOffsets[#groupOffsets + 1] = total -- 90
-				local heading = Node() -- 91
-				heading.tag = "mobile-project-index-group-" .. group.key -- 91
-				heading.anchor = Vec2(0, 1) -- 92
-				heading.position = Vec2(0, listHeight - total) -- 92
-				heading.size = Size(listWidth, groupHeight) -- 93
-				heading:addTo(scroll.view) -- 93
-				local groupTitle = group.key == "#" and (props.zh and "其它" or "Other") or group.key -- 94
-				local headingBg = DrawNode() -- 95
-				headingBg:drawSegment( -- 96
-					Vec2(38, 18), -- 96
-					Vec2(listWidth - 4, 18), -- 96
-					0.5, -- 96
-					Color(4281613128) -- 96
-				) -- 96
-				headingBg:addTo(heading) -- 97
-				addLabel( -- 98
-					heading, -- 98
-					groupTitle, -- 98
-					12, -- 98
-					4294954035, -- 98
-					8, -- 98
-					18 -- 98
+	local function onCreate() -- 64
+		local root = Node() -- 65
+		root.tag = "mobile-project-index" -- 66
+		root.anchor = Vec2.zero -- 67
+		root.size = Size(props.width, props.height) -- 68
+		root.renderGroup = true -- 69
+		root.renderOrder = 15000 -- 70
+		root.touchEnabled = true -- 71
+		root.swallowTouches = true -- 72
+		local discover = props.kind == "discover" -- 73
+		addLabel( -- 74
+			root, -- 74
+			((discover and (props.zh and "发现作品" or "DISCOVER") or (props.zh and "本地作品" or "LOCAL")) .. " · ") .. tostring(#props.entries), -- 74
+			18, -- 74
+			4294242792, -- 74
+			16, -- 75
+			props.height - 34 -- 75
+		) -- 75
+		local back = Node() -- 76
+		back.tag = "mobile-project-index-back" -- 76
+		back.anchor = Vec2.zero -- 76
+		back.position = Vec2(props.width - 96, props.height - 62) -- 77
+		back.size = Size(80, 44) -- 77
+		back.touchEnabled = true -- 77
+		back.swallowTouches = true -- 77
+		back:onTapped(props.onClose) -- 78
+		back:addTo(root) -- 78
+		addLabel( -- 79
+			back, -- 79
+			props.zh and "返回 ›" or "Back ›", -- 79
+			18, -- 79
+			4294954035, -- 79
+			80, -- 79
+			22, -- 79
+			Vec2(1, 0.5) -- 79
+		) -- 79
+		local groups = groupFeedProjects(props.entries) -- 81
+		local listX = railWidth + 8 -- 82
+		local listWidth = math.max(40, props.width - listX - 14) -- 83
+		local listHeight = math.max(40, props.height - headerHeight - footerHeight) -- 84
+		local scroll = ScrollArea({ -- 85
+			width = listWidth, -- 85
+			height = listHeight, -- 85
+			paddingX = 0, -- 85
+			paddingY = 28, -- 85
+			scrollBar = false -- 85
+		}) -- 85
+		scroll.tag = "mobile-project-index-scroll" -- 86
+		scroll.position = Vec2(listX + listWidth / 2, footerHeight + listHeight / 2) -- 86
+		scroll:addTo(root) -- 86
+		local flat = {} -- 87
+		local groupOffsets = {} -- 88
+		local total = 0 -- 89
+		do -- 89
+			local groupIndex = 0 -- 90
+			while groupIndex < #groups do -- 90
+				local group = groups[groupIndex + 1] -- 91
+				groupOffsets[#groupOffsets + 1] = total -- 92
+				local heading = Node() -- 93
+				heading.tag = "mobile-project-index-group-" .. group.key -- 93
+				heading.anchor = Vec2(0, 1) -- 94
+				heading.position = Vec2(0, listHeight - total) -- 94
+				heading.size = Size(listWidth, groupHeight) -- 95
+				heading:addTo(scroll.view) -- 95
+				local groupTitle = group.key == "#" and (props.zh and "其它" or "Other") or group.key -- 96
+				local headingBg = DrawNode() -- 97
+				headingBg:drawSegment( -- 98
+					Vec2(38, 18), -- 98
+					Vec2(listWidth - 4, 18), -- 98
+					0.5, -- 98
+					Color(4281613128) -- 98
 				) -- 98
-				total = total + groupHeight -- 99
-				for ____, entry in ipairs(group.entries) do -- 100
-					local row = Node() -- 101
-					row.tag = "mobile-project-index-entry-" .. tostring(#flat) -- 101
-					row.anchor = Vec2(0, 1) -- 101
-					row.position = Vec2(0, listHeight - total) -- 102
-					row.size = Size(listWidth, rowHeight) -- 102
-					row.touchEnabled = true -- 103
-					row.swallowTouches = true -- 103
-					row:onTapped(function() return props:onSelect(entry) end) -- 103
-					row:addTo(scroll.view) -- 103
-					local ____temp_4 = entry == props.current -- 104
-					if not ____temp_4 then -- 104
-						local ____temp_3 = entry.fileName ~= nil -- 104
-						if ____temp_3 then -- 104
-							local ____entry_fileName_2 = entry.fileName -- 104
-							local ____opt_0 = props.current -- 104
-							____temp_3 = ____entry_fileName_2 == (____opt_0 and ____opt_0.fileName) -- 104
-						end -- 104
-						____temp_4 = ____temp_3 -- 104
-					end -- 104
-					local ____temp_4_9 = ____temp_4 -- 104
-					if not ____temp_4_9 then -- 104
-						local ____temp_8 = entry.workDir ~= nil -- 105
-						if ____temp_8 then -- 105
-							local ____entry_workDir_7 = entry.workDir -- 105
-							local ____opt_5 = props.current -- 105
-							____temp_8 = ____entry_workDir_7 == (____opt_5 and ____opt_5.workDir) -- 105
-						end -- 105
-						____temp_4_9 = ____temp_8 -- 104
-					end -- 104
-					local selected = ____temp_4_9 -- 104
-					local rowBg = DrawNode() -- 106
-					rowBg:drawSegment( -- 107
-						Vec2(8, 1), -- 107
-						Vec2(listWidth - 8, 1), -- 107
-						0.5, -- 107
-						Color(4280560439) -- 107
-					) -- 107
-					if selected then -- 107
-						rowBg:drawSegment( -- 108
-							Vec2(5, 13), -- 108
-							Vec2(5, rowHeight - 13), -- 108
-							1.5, -- 108
-							Color(4294954035) -- 108
-						) -- 108
-					end -- 108
-					rowBg:addTo(row) -- 109
-					addLabel( -- 110
-						row, -- 110
-						ellipsize( -- 110
-							entry.title, -- 110
-							math.max( -- 110
-								8, -- 110
-								math.floor((listWidth - 54) / 9) -- 110
-							) -- 110
-						), -- 110
-						14, -- 110
-						selected and 4294954035 or 4294242792, -- 111
-						16, -- 111
-						rowHeight / 2 -- 111
-					) -- 111
-					flat[#flat + 1] = {entry = entry, node = row, groupIndex = groupIndex, centerFromTop = total + rowHeight / 2} -- 112
-					total = total + rowHeight -- 113
-				end -- 113
-				groupIndex = groupIndex + 1 -- 88
-			end -- 88
-		end -- 88
-		if #groups == 0 then -- 88
-			addLabel( -- 117
-				scroll.view, -- 117
-				props.zh and "还没有本地作品" or "No local games yet", -- 117
-				14, -- 117
-				4286021260, -- 117
-				listWidth / 2, -- 118
-				listHeight / 2, -- 118
-				Vec2(0.5, 0.5) -- 118
-			) -- 118
-		end -- 118
-		scroll:resetSize(listWidth, listHeight, listWidth, total) -- 120
-		local function maxOffset() -- 121
-			return math.max(0, total - listHeight) -- 121
-		end -- 121
-		local function scrollTo(centerFromTop) -- 122
-			scroll:unschedule() -- 123
-			scroll.offset = Vec2( -- 123
-				0, -- 123
-				math.max( -- 123
-					0, -- 123
-					math.min( -- 123
-						maxOffset(), -- 123
-						centerFromTop - listHeight / 2 -- 123
-					) -- 123
-				) -- 123
-			) -- 123
-			scroll.view:moveAndCullItems(Vec2.zero) -- 124
-		end -- 122
-		local selectedIndex = math.max( -- 126
-			0, -- 126
-			__TS__ArrayFindIndex( -- 126
-				flat, -- 126
-				function(____, item) -- 126
-					local ____temp_14 = item.entry == props.current -- 126
-					if not ____temp_14 then -- 126
-						local ____temp_13 = item.entry.fileName ~= nil -- 127
-						if ____temp_13 then -- 127
-							local ____item_entry_fileName_12 = item.entry.fileName -- 127
-							local ____opt_10 = props.current -- 127
-							____temp_13 = ____item_entry_fileName_12 == (____opt_10 and ____opt_10.fileName) -- 127
-						end -- 127
-						____temp_14 = ____temp_13 -- 126
-					end -- 126
-					local ____temp_14_19 = ____temp_14 -- 126
-					if not ____temp_14_19 then -- 126
-						local ____temp_18 = item.entry.workDir ~= nil -- 128
-						if ____temp_18 then -- 128
-							local ____item_entry_workDir_17 = item.entry.workDir -- 128
-							local ____opt_15 = props.current -- 128
-							____temp_18 = ____item_entry_workDir_17 == (____opt_15 and ____opt_15.workDir) -- 128
-						end -- 128
-						____temp_14_19 = ____temp_18 -- 126
-					end -- 126
-					return ____temp_14_19 -- 126
-				end -- 126
-			) -- 126
-		) -- 126
-		if flat[selectedIndex + 1] ~= nil then -- 126
-			scrollTo(flat[selectedIndex + 1].centerFromTop) -- 129
-		end -- 129
-		local popup = Node() -- 131
-		popup.visible = false -- 131
-		popup.position = Vec2(railWidth + 48, props.height / 2) -- 131
-		popup:addTo(root) -- 131
-		local popupShape = DrawNode() -- 132
-		popupShape:drawPolygon( -- 133
-			roundedVerts( -- 133
-				-28, -- 133
-				-28, -- 133
-				56, -- 133
-				56, -- 133
-				16 -- 133
-			), -- 133
-			Color(4279704614), -- 133
-			1, -- 133
-			Color(4286606108) -- 133
-		) -- 133
-		popupShape:addTo(popup) -- 133
-		local popupLabel = addLabel( -- 134
-			popup, -- 134
-			"", -- 134
-			18, -- 134
-			4294954035, -- 134
-			0, -- 134
-			0, -- 134
-			Vec2(0.5, 0.5) -- 134
-		) -- 134
-		popupLabel.tag = "mobile-project-index-popup-label" -- 135
-		local rail = Node() -- 136
-		rail.tag = "mobile-project-index-rail" -- 136
-		rail.anchor = Vec2.zero -- 136
-		rail.position = Vec2(0, footerHeight) -- 137
-		rail.size = Size(railWidth, listHeight) -- 137
-		rail.touchEnabled = #groups > 0 -- 138
-		rail.swallowTouches = true -- 138
-		rail:addTo(root) -- 138
-		local railLabels = {} -- 139
-		do -- 139
-			local i = 0 -- 140
-			while i < #groups do -- 140
-				local y = listHeight - (i + 0.5) * listHeight / #groups -- 141
-				railLabels[#railLabels + 1] = addLabel( -- 142
-					rail, -- 142
-					groups[i + 1].key, -- 142
-					#groups > 20 and 9 or 11, -- 142
-					4286021260, -- 142
-					railWidth / 2, -- 142
-					y, -- 142
-					Vec2(0.5, 0.5) -- 142
-				) -- 142
-				i = i + 1 -- 140
-			end -- 140
-		end -- 140
-		local ____opt_20 = flat[selectedIndex + 1] -- 140
-		local activeGroup = ____opt_20 and ____opt_20.groupIndex or 0 -- 144
-		local function selectGroup(groupIndex, showPopup, jump) -- 145
-			if jump == nil then -- 145
-				jump = true -- 145
-			end -- 145
-			if #groups == 0 then -- 145
-				return -- 146
-			end -- 146
-			activeGroup = math.max( -- 147
-				0, -- 147
-				math.min(#groups - 1, groupIndex) -- 147
-			) -- 147
-			if jump then -- 147
-				scroll:unschedule() -- 149
-				scroll.offset = Vec2( -- 149
-					0, -- 149
-					math.max( -- 149
-						0, -- 149
-						math.min( -- 149
-							maxOffset(), -- 149
-							groupOffsets[activeGroup + 1] -- 149
-						) -- 149
-					) -- 149
-				) -- 149
-				scroll.view:moveAndCullItems(Vec2.zero) -- 150
-			end -- 150
-			do -- 150
-				local i = 0 -- 152
-				while i < #railLabels do -- 152
-					railLabels[i + 1].color3 = Color3(i == activeGroup and 4294954035 or 7831180) -- 152
-					i = i + 1 -- 152
-				end -- 152
+				headingBg:addTo(heading) -- 99
+				addLabel( -- 100
+					heading, -- 100
+					groupTitle, -- 100
+					12, -- 100
+					4294954035, -- 100
+					8, -- 100
+					18 -- 100
+				) -- 100
+				total = total + groupHeight -- 101
+				for ____, entry in ipairs(group.entries) do -- 102
+					local row = Node() -- 103
+					row.tag = "mobile-project-index-entry-" .. tostring(#flat) -- 103
+					row.anchor = Vec2(0, 1) -- 103
+					row.position = Vec2(0, listHeight - total) -- 104
+					row.size = Size(listWidth, rowHeight) -- 104
+					row.touchEnabled = true -- 105
+					row.swallowTouches = true -- 105
+					row:onTapped(function() return props:onSelect(entry) end) -- 105
+					row:addTo(scroll.view) -- 105
+					local ____temp_4 = entry == props.current -- 106
+					if not ____temp_4 then -- 106
+						local ____temp_3 = entry.fileName ~= nil -- 106
+						if ____temp_3 then -- 106
+							local ____entry_fileName_2 = entry.fileName -- 106
+							local ____opt_0 = props.current -- 106
+							____temp_3 = ____entry_fileName_2 == (____opt_0 and ____opt_0.fileName) -- 106
+						end -- 106
+						____temp_4 = ____temp_3 -- 106
+					end -- 106
+					local ____temp_4_9 = ____temp_4 -- 106
+					if not ____temp_4_9 then -- 106
+						local ____temp_8 = entry.workDir ~= nil -- 107
+						if ____temp_8 then -- 107
+							local ____entry_workDir_7 = entry.workDir -- 107
+							local ____opt_5 = props.current -- 107
+							____temp_8 = ____entry_workDir_7 == (____opt_5 and ____opt_5.workDir) -- 107
+						end -- 107
+						____temp_4_9 = ____temp_8 -- 106
+					end -- 106
+					local selected = ____temp_4_9 -- 106
+					local rowBg = DrawNode() -- 108
+					rowBg:drawSegment( -- 109
+						Vec2(8, 1), -- 109
+						Vec2(listWidth - 8, 1), -- 109
+						0.5, -- 109
+						Color(4280560439) -- 109
+					) -- 109
+					if selected then -- 109
+						rowBg:drawSegment( -- 110
+							Vec2(5, 13), -- 110
+							Vec2(5, rowHeight - 13), -- 110
+							1.5, -- 110
+							Color(4294954035) -- 110
+						) -- 110
+					end -- 110
+					rowBg:addTo(row) -- 111
+					addLabel( -- 112
+						row, -- 112
+						ellipsize( -- 112
+							entry.title, -- 112
+							math.max( -- 112
+								8, -- 112
+								math.floor((listWidth - 54) / 9) -- 112
+							) -- 112
+						), -- 112
+						14, -- 112
+						selected and 4294954035 or 4294242792, -- 113
+						16, -- 113
+						rowHeight / 2 -- 113
+					) -- 113
+					flat[#flat + 1] = {entry = entry, node = row, groupIndex = groupIndex, centerFromTop = total + rowHeight / 2} -- 114
+					total = total + rowHeight -- 115
+				end -- 115
+				groupIndex = groupIndex + 1 -- 90
+			end -- 90
+		end -- 90
+		if #groups == 0 then -- 90
+			addLabel( -- 119
+				scroll.view, -- 119
+				discover and (props.zh and "暂无发现作品" or "No discovered games yet") or (props.zh and "还没有本地作品" or "No local games yet"), -- 119
+				14, -- 119
+				4286021260, -- 119
+				listWidth / 2, -- 120
+				listHeight / 2, -- 120
+				Vec2(0.5, 0.5) -- 120
+			) -- 120
+		end -- 120
+		scroll:resetSize(listWidth, listHeight, listWidth, total) -- 122
+		local function maxOffset() -- 123
+			return math.max(0, total - listHeight) -- 123
+		end -- 123
+		local function scrollTo(centerFromTop) -- 124
+			scroll:unschedule() -- 125
+			scroll.offset = Vec2( -- 125
+				0, -- 125
+				math.max( -- 125
+					0, -- 125
+					math.min( -- 125
+						maxOffset(), -- 125
+						centerFromTop - listHeight / 2 -- 125
+					) -- 125
+				) -- 125
+			) -- 125
+			scroll.view:moveAndCullItems(Vec2.zero) -- 126
+		end -- 124
+		local selectedIndex = math.max( -- 128
+			0, -- 128
+			__TS__ArrayFindIndex( -- 128
+				flat, -- 128
+				function(____, item) -- 128
+					local ____temp_14 = item.entry == props.current -- 128
+					if not ____temp_14 then -- 128
+						local ____temp_13 = item.entry.fileName ~= nil -- 129
+						if ____temp_13 then -- 129
+							local ____item_entry_fileName_12 = item.entry.fileName -- 129
+							local ____opt_10 = props.current -- 129
+							____temp_13 = ____item_entry_fileName_12 == (____opt_10 and ____opt_10.fileName) -- 129
+						end -- 129
+						____temp_14 = ____temp_13 -- 128
+					end -- 128
+					local ____temp_14_19 = ____temp_14 -- 128
+					if not ____temp_14_19 then -- 128
+						local ____temp_18 = item.entry.workDir ~= nil -- 130
+						if ____temp_18 then -- 130
+							local ____item_entry_workDir_17 = item.entry.workDir -- 130
+							local ____opt_15 = props.current -- 130
+							____temp_18 = ____item_entry_workDir_17 == (____opt_15 and ____opt_15.workDir) -- 130
+						end -- 130
+						____temp_14_19 = ____temp_18 -- 128
+					end -- 128
+					return ____temp_14_19 -- 128
+				end -- 128
+			) -- 128
+		) -- 128
+		if flat[selectedIndex + 1] ~= nil then -- 128
+			scrollTo(flat[selectedIndex + 1].centerFromTop) -- 131
+		end -- 131
+		local popup = Node() -- 133
+		popup.visible = false -- 133
+		popup.position = Vec2(railWidth + 48, props.height / 2) -- 133
+		popup:addTo(root) -- 133
+		local popupShape = DrawNode() -- 134
+		popupShape:drawPolygon( -- 135
+			roundedVerts( -- 135
+				-28, -- 135
+				-28, -- 135
+				56, -- 135
+				56, -- 135
+				16 -- 135
+			), -- 135
+			Color(4279704614), -- 135
+			1, -- 135
+			Color(4286606108) -- 135
+		) -- 135
+		popupShape:addTo(popup) -- 135
+		local popupLabel = addLabel( -- 136
+			popup, -- 136
+			"", -- 136
+			18, -- 136
+			4294954035, -- 136
+			0, -- 136
+			0, -- 136
+			Vec2(0.5, 0.5) -- 136
+		) -- 136
+		popupLabel.tag = "mobile-project-index-popup-label" -- 137
+		local rail = Node() -- 138
+		rail.tag = "mobile-project-index-rail" -- 138
+		rail.anchor = Vec2.zero -- 138
+		rail.position = Vec2(0, footerHeight) -- 139
+		rail.size = Size(railWidth, listHeight) -- 139
+		rail.touchEnabled = #groups > 0 -- 140
+		rail.swallowTouches = true -- 140
+		rail:addTo(root) -- 140
+		local railLabels = {} -- 141
+		do -- 141
+			local i = 0 -- 142
+			while i < #groups do -- 142
+				local y = listHeight - (i + 0.5) * listHeight / #groups -- 143
+				railLabels[#railLabels + 1] = addLabel( -- 144
+					rail, -- 144
+					groups[i + 1].key, -- 144
+					#groups > 20 and 9 or 11, -- 144
+					4286021260, -- 144
+					railWidth / 2, -- 144
+					y, -- 144
+					Vec2(0.5, 0.5) -- 144
+				) -- 144
+				i = i + 1 -- 142
+			end -- 142
+		end -- 142
+		local ____opt_20 = flat[selectedIndex + 1] -- 142
+		local activeGroup = ____opt_20 and ____opt_20.groupIndex or 0 -- 146
+		local function selectGroup(groupIndex, showPopup, jump) -- 147
+			if jump == nil then -- 147
+				jump = true -- 147
+			end -- 147
+			if #groups == 0 then -- 147
+				return -- 148
+			end -- 148
+			activeGroup = math.max( -- 149
+				0, -- 149
+				math.min(#groups - 1, groupIndex) -- 149
+			) -- 149
+			if jump then -- 149
+				scroll:unschedule() -- 151
+				scroll.offset = Vec2( -- 151
+					0, -- 151
+					math.max( -- 151
+						0, -- 151
+						math.min( -- 151
+							maxOffset(), -- 151
+							groupOffsets[activeGroup + 1] -- 151
+						) -- 151
+					) -- 151
+				) -- 151
+				scroll.view:moveAndCullItems(Vec2.zero) -- 152
 			end -- 152
-			popupLabel.text = groups[activeGroup + 1].key == "#" and (props.zh and "其它" or "Other") or groups[activeGroup + 1].key -- 153
-			popup.visible = showPopup -- 154
-		end -- 145
-		selectGroup(activeGroup, false, false) -- 156
-		local function groupAt(worldLocation) -- 157
-			if #groups == 0 then -- 157
-				return 0 -- 158
-			end -- 158
-			local point = rail:convertToNodeSpace(worldLocation) -- 159
-			popup.y = footerHeight + math.max( -- 160
-				32, -- 160
-				math.min(listHeight - 32, point.y) -- 160
-			) -- 160
-			return math.max( -- 161
-				0, -- 161
-				math.min( -- 161
-					#groups - 1, -- 161
-					math.floor((listHeight - point.y) / listHeight * #groups) -- 161
-				) -- 161
-			) -- 161
-		end -- 157
-		rail:onTapBegan(function(touch) return selectGroup( -- 163
-			groupAt(touch.worldLocation), -- 163
-			true -- 163
-		) end) -- 163
-		rail:onTapMoved(function(touch) return selectGroup( -- 164
-			groupAt(touch.worldLocation), -- 164
-			true -- 164
-		) end) -- 164
-		rail:onTapEnded(function() -- 165
-			popup.visible = false -- 165
-		end) -- 165
-		local hint = props.zh and "拖动左侧刻度快速定位" or "Drag the index to jump" -- 167
-		addLabel( -- 168
-			root, -- 168
-			hint, -- 168
-			9, -- 168
-			4286021260, -- 168
-			props.width / 2, -- 168
-			footerHeight / 2, -- 168
-			Vec2(0.5, 0.5) -- 168
-		) -- 168
-		local function moveSelection(delta) -- 169
-			if #flat == 0 then -- 169
-				return -- 170
-			end -- 170
-			selectedIndex = math.max( -- 171
-				0, -- 171
-				math.min(#flat - 1, selectedIndex + delta) -- 171
-			) -- 171
-			activeGroup = flat[selectedIndex + 1].groupIndex -- 172
-			scrollTo(flat[selectedIndex + 1].centerFromTop) -- 172
-			selectGroup(activeGroup, false, false) -- 173
-			selectGamepadNode(root, flat[selectedIndex + 1].node.tag) -- 173
-		end -- 169
-		local ____opt_22 = flat[selectedIndex + 1] -- 169
-		local gamepadOptions = { -- 175
-			initialTag = ____opt_22 and ____opt_22.node.tag or "mobile-project-index-back", -- 176
-			onBack = function() return props:onClose() end, -- 177
-			onScroll = function(amount) -- 178
-				scroll:unschedule() -- 178
-				scroll.offset = Vec2( -- 178
-					0, -- 178
-					math.max( -- 178
-						0, -- 178
-						math.min( -- 178
-							maxOffset(), -- 178
-							scroll.offset.y + amount -- 178
-						) -- 178
-					) -- 178
-				) -- 178
-				scroll.view:moveAndCullItems(Vec2.zero) -- 178
-			end, -- 178
-			onButton = function(button) -- 179
-				if button == "dpup" then -- 179
-					moveSelection(-1) -- 180
-					return true -- 180
-				end -- 180
-				if button == "dpdown" then -- 180
-					moveSelection(1) -- 181
-					return true -- 181
-				end -- 181
-				if button == "dpleft" or button == "dpright" then -- 181
-					local nextGroup = math.max( -- 183
-						0, -- 183
-						math.min(#groups - 1, activeGroup + (button == "dpright" and 1 or -1)) -- 183
-					) -- 183
-					local next = __TS__ArrayFindIndex( -- 184
-						flat, -- 184
-						function(____, item) return item.groupIndex == nextGroup end -- 184
-					) -- 184
-					if next >= 0 then -- 184
-						selectedIndex = next -- 185
-						moveSelection(0) -- 185
-					end -- 185
-					return true -- 186
-				end -- 186
-				if button == "a" and flat[selectedIndex + 1] then -- 186
-					props:onSelect(flat[selectedIndex + 1].entry) -- 188
+			do -- 152
+				local i = 0 -- 154
+				while i < #railLabels do -- 154
+					railLabels[i + 1].color3 = Color3(i == activeGroup and 4294954035 or 7831180) -- 154
+					i = i + 1 -- 154
+				end -- 154
+			end -- 154
+			popupLabel.text = groups[activeGroup + 1].key == "#" and (props.zh and "其它" or "Other") or groups[activeGroup + 1].key -- 155
+			popup.visible = showPopup -- 156
+		end -- 147
+		selectGroup(activeGroup, false, false) -- 158
+		local function groupAt(worldLocation) -- 159
+			if #groups == 0 then -- 159
+				return 0 -- 160
+			end -- 160
+			local point = rail:convertToNodeSpace(worldLocation) -- 161
+			popup.y = footerHeight + math.max( -- 162
+				32, -- 162
+				math.min(listHeight - 32, point.y) -- 162
+			) -- 162
+			return math.max( -- 163
+				0, -- 163
+				math.min( -- 163
+					#groups - 1, -- 163
+					math.floor((listHeight - point.y) / listHeight * #groups) -- 163
+				) -- 163
+			) -- 163
+		end -- 159
+		rail:onTapBegan(function(touch) return selectGroup( -- 165
+			groupAt(touch.worldLocation), -- 165
+			true -- 165
+		) end) -- 165
+		rail:onTapMoved(function(touch) return selectGroup( -- 166
+			groupAt(touch.worldLocation), -- 166
+			true -- 166
+		) end) -- 166
+		rail:onTapEnded(function() -- 167
+			popup.visible = false -- 167
+		end) -- 167
+		local hint = props.zh and "拖动左侧刻度快速定位" or "Drag the index to jump" -- 169
+		addLabel( -- 170
+			root, -- 170
+			hint, -- 170
+			9, -- 170
+			4286021260, -- 170
+			props.width / 2, -- 170
+			footerHeight / 2, -- 170
+			Vec2(0.5, 0.5) -- 170
+		) -- 170
+		local function moveSelection(delta) -- 171
+			if #flat == 0 then -- 171
+				return -- 172
+			end -- 172
+			selectedIndex = math.max( -- 173
+				0, -- 173
+				math.min(#flat - 1, selectedIndex + delta) -- 173
+			) -- 173
+			activeGroup = flat[selectedIndex + 1].groupIndex -- 174
+			scrollTo(flat[selectedIndex + 1].centerFromTop) -- 174
+			selectGroup(activeGroup, false, false) -- 175
+			selectGamepadNode(root, flat[selectedIndex + 1].node.tag) -- 175
+		end -- 171
+		local ____opt_22 = flat[selectedIndex + 1] -- 171
+		local gamepadOptions = { -- 177
+			initialTag = ____opt_22 and ____opt_22.node.tag or "mobile-project-index-back", -- 178
+			onBack = function() return props:onClose() end, -- 179
+			onScroll = function(amount) -- 180
+				scroll:unschedule() -- 180
+				scroll.offset = Vec2( -- 180
+					0, -- 180
+					math.max( -- 180
+						0, -- 180
+						math.min( -- 180
+							maxOffset(), -- 180
+							scroll.offset.y + amount -- 180
+						) -- 180
+					) -- 180
+				) -- 180
+				scroll.view:moveAndCullItems(Vec2.zero) -- 180
+			end, -- 180
+			onButton = function(button) -- 181
+				if button == "dpup" then -- 181
+					moveSelection(-1) -- 182
+					return true -- 182
+				end -- 182
+				if button == "dpdown" then -- 182
+					moveSelection(1) -- 183
+					return true -- 183
+				end -- 183
+				if button == "dpleft" or button == "dpright" then -- 183
+					local nextGroup = math.max( -- 185
+						0, -- 185
+						math.min(#groups - 1, activeGroup + (button == "dpright" and 1 or -1)) -- 185
+					) -- 185
+					local next = __TS__ArrayFindIndex( -- 186
+						flat, -- 186
+						function(____, item) return item.groupIndex == nextGroup end -- 186
+					) -- 186
+					if next >= 0 then -- 186
+						selectedIndex = next -- 187
+						moveSelection(0) -- 187
+					end -- 187
 					return true -- 188
 				end -- 188
-				return false -- 189
-			end -- 179
-		} -- 179
-		root:schedule(function() -- 194
-			attachGamepad(root, gamepadOptions) -- 194
-			return true -- 194
-		end) -- 194
-		return root -- 195
-	end -- 63
-	return React.createElement("custom-node", { -- 197
-		tag = "mobile-project-index-container", -- 197
-		x = props.x, -- 197
-		y = props.y, -- 197
-		width = props.width, -- 197
-		height = props.height, -- 197
-		order = 15000, -- 197
-		renderOrder = 15000, -- 197
-		onCreate = onCreate -- 197
-	}) -- 197
+				if button == "a" and flat[selectedIndex + 1] then -- 188
+					props:onSelect(flat[selectedIndex + 1].entry) -- 190
+					return true -- 190
+				end -- 190
+				return false -- 191
+			end -- 181
+		} -- 181
+		root:schedule(function() -- 196
+			attachGamepad(root, gamepadOptions) -- 196
+			return true -- 196
+		end) -- 196
+		return root -- 197
+	end -- 64
+	return React.createElement("custom-node", { -- 199
+		tag = "mobile-project-index-container", -- 199
+		x = props.x, -- 199
+		y = props.y, -- 199
+		width = props.width, -- 199
+		height = props.height, -- 199
+		order = 15000, -- 199
+		renderOrder = 15000, -- 199
+		onCreate = onCreate -- 199
+	}) -- 199
 end -- 52
 return ____exports -- 52

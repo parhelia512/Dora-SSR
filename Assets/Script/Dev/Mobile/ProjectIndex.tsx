@@ -51,6 +51,7 @@ function roundedVerts(x: number, y: number, width: number, height: number, radiu
 
 export function ProjectIndex(props: {
 	entries: FeedEntry[];
+	kind?: "local" | "discover";
 	current?: FeedEntry;
 	x: number;
 	y: number;
@@ -69,7 +70,8 @@ export function ProjectIndex(props: {
 		root.renderOrder = 15000;
 		root.touchEnabled = true;
 		root.swallowTouches = true;
-		addLabel(root, `${props.zh ? "本地作品" : "LOCAL"} · ${props.entries.length}`, 18, 0xfff4f1e8,
+		const discover = props.kind === "discover";
+		addLabel(root, `${discover ? (props.zh ? "发现作品" : "DISCOVER") : (props.zh ? "本地作品" : "LOCAL")} · ${props.entries.length}`, 18, 0xfff4f1e8,
 			16, props.height - 34);
 		const back = Node(); back.tag = "mobile-project-index-back"; back.anchor = Vec2.zero;
 		back.position = Vec2(props.width - 96, props.height - 62); back.size = Size(80, 44); back.touchEnabled = true; back.swallowTouches = true;
@@ -114,7 +116,7 @@ export function ProjectIndex(props: {
 			}
 		}
 		if (groups.length === 0) {
-			addLabel(scroll.view, props.zh ? "还没有本地作品" : "No local games yet", 14, 0xff777e8c,
+			addLabel(scroll.view, discover ? (props.zh ? "暂无发现作品" : "No discovered games yet") : (props.zh ? "还没有本地作品" : "No local games yet"), 14, 0xff777e8c,
 				listWidth / 2, listHeight / 2, Vec2(0.5, 0.5));
 		}
 		scroll.resetSize(listWidth, listHeight, listWidth, total);
